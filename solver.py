@@ -19,6 +19,7 @@ class Solver:
         self.course_list = loader.get_course_list()
         self.course_pair_evaluator = loader.get_course_pair_weights()
         self.moed_a_dates, self.moed_b_dates = loader.get_available_dates()
+        self.evaluator = evaluator
 
     @abstractmethod
     def solve(self):
