@@ -92,4 +92,4 @@ class CSVdataloader(Dataloader):
         :return: Tuple of two lists: a list of all available dates for moed a exams, and a list of all
         available dates for moed b exams.
         """
-        return self.moedA_dates, self.moedB_dates
+        return super().get_available_dates()
