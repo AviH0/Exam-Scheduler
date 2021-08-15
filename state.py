@@ -9,7 +9,8 @@ from objects import *
 class State:
 
     def __init__(self, courses_and_dates: Dict[Course, Tuple[date, date]] = None,
-                 course_list: List[Course] = None, date_list: Tuple[Sequence[date], Sequence[date]] = None):
+                 course_list: List[Course] = None, date_list: Tuple[Sequence[date], Sequence[date]] = None,
+                 keep_empty: bool = False):
         """
         Initialise a new state. Each state holds a dictionary where the keys are courses and the values are
         a tuple of dates (moed a and moed b).
@@ -24,7 +25,7 @@ class State:
         self.course_list = course_list
         self.date_list = date_list
         self.courses_dict: Dict[Course, Tuple[date, date]] = courses_and_dates
-        if not courses_and_dates:
+        if not courses_and_dates and not keep_empty:
             self.random_initialise()
 
     def random_initialise(self):  # TODO Random is almost always bad - at least enforce 21 days between aleph and bet
