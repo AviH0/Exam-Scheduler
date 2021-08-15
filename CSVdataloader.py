@@ -3,6 +3,7 @@ import csv
 from typing import List, Callable, Tuple
 from datetime import date
 from objects import *
+import re
 
 
 class CSVdataloader(Dataloader):
@@ -13,8 +14,9 @@ class CSVdataloader(Dataloader):
         super()._create_available_dates()
 
         self._courses = {}
-        self._parse(dir)
+        self._majors_dict = {}
 
+        self._parse(dir)
 
 
     def _parse(self, dir: str):
@@ -24,27 +26,32 @@ class CSVdataloader(Dataloader):
                 if k < 3:
                     continue
                 major = Major(major_csv_row[0], k)
+                self._majors_dict[major_csv_row[0]] = major
                 for sem in Semester:
                     self._read_sem_k(sem, major_csv_row, major)
 
     def _read_sem_k(self, sem: Semester, major_csv_row: list, major: Major):
 
         sem_index = sem.value * 3 + 1  # from the structure of the csv file
-        hova = major_csv_row[sem_index + 0].split(', ')
-        bhirat_hova = major_csv_row[sem_index + 1].split(', ')
-        bhira = major_csv_row[sem_index + 2].split(', ')
+        hova = re.split("\s*,*\s*", major_csv_row[sem_index + 0])
+        bhirat_hova = re.split("\s*,*\s*", major_csv_row[sem_index + 1])
+        bhira = re.split("\s*,*\s*", major_csv_row[sem_index + 2])
 
-        # split will return [''] for an empty string input...
-        if hova == ['']:
-            hova = []
-        if bhirat_hova == ['']:
-            bhirat_hova = []
-        if bhira == ['']:
-            bhira = []
+        hova = self._get_valid_course_num(hova)
+        bhirat_hova = self._get_valid_course_num(bhirat_hova)
+        bhira = self._get_valid_course_num(bhira)
 
         self._add_course(hova, CourseType.HOVA, major, sem)
         self._add_course(bhirat_hova, CourseType.BHIRAT_HOVA, major, sem)
         self._add_course(bhira, CourseType.BHIRA, major, sem)
+
+    def _get_valid_course_num(self, courses_num_lst):
+        correct_course_lst = []
+        for i, courseNo in enumerate(courses_num_lst):
+            courseNo = re.sub("\D+", '', courseNo)
+            if len(courseNo) == 5:
+                correct_course_lst.append(courseNo)
+        return correct_course_lst
 
     def _add_course(self, courses_num: List[str], type: CourseType, major: Major, sem: Semester):
         """
@@ -71,6 +78,9 @@ class CSVdataloader(Dataloader):
         Return list of all courses.
         """
         return list(self._courses.values())
+
+    def get_majors_dict(self):
+        return self._majors_dict
 
     @staticmethod
     def course_pair_weight_calc(c1: Course, c2: Course):
