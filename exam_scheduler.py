@@ -24,6 +24,7 @@ def main():
     majors_dict = dl.get_majors_dict()
     major = majors_dict["מדמח חד חוגי"]
     print(sol.get_major_schedule_repr(major))
+    print(evaluator.evaluate(sol))
 
 
 if __name__ == "__main__":

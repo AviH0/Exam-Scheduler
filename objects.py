@@ -84,6 +84,7 @@ class Course:
         self.number = course_num
         self.name = course_name  # TODO do we have it...?
         self._majors_dict = {}
+        self.__hash = hash(course_num)
 
     def add_major(self, major: Major, sem: Semester, type: CourseType):
         self._majors_dict[major] = (sem, type)  # TODO a course can be bhira / hovat bhira in two different semesters...
@@ -124,7 +125,7 @@ class Course:
         return self.number == other.number
 
     def __hash__(self):
-        return hash(self.number)
+        return self.__hash
 
     def __repr__(self):
         return self.number

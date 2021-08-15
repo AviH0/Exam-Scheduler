@@ -1,6 +1,6 @@
 from dataloader import Dataloader
 import csv
-from typing import List, Callable, Tuple
+from typing import List, Callable, Tuple, Mapping, Set, Dict, FrozenSet
 from datetime import date
 from objects import *
 import re
@@ -12,15 +12,14 @@ class CSVdataloader(Dataloader):
 
         super().__init__(startA, startB, end, not_allowed)
         super()._create_available_dates()
-
+        self.__course_pairs: Dict[Course, Dict[Course, float]] = dict()
         self._courses = {}
         self._majors_dict = {}
 
         self._parse(dir)
 
-
     def _parse(self, dir: str):
-        with open(dir) as csv_file:
+        with open(dir, encoding='utf-8') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             for k, major_csv_row in enumerate(csv_reader):
                 if k < 3:
@@ -33,9 +32,9 @@ class CSVdataloader(Dataloader):
     def _read_sem_k(self, sem: Semester, major_csv_row: list, major: Major):
 
         sem_index = sem.value * 3 + 1  # from the structure of the csv file
-        hova = re.split("\s*,*\s*", major_csv_row[sem_index + 0])
-        bhirat_hova = re.split("\s*,*\s*", major_csv_row[sem_index + 1])
-        bhira = re.split("\s*,*\s*", major_csv_row[sem_index + 2])
+        hova = re.split("\s*,\s*", major_csv_row[sem_index + 0])
+        bhirat_hova = re.split("\s*,\s*", major_csv_row[sem_index + 1])
+        bhira = re.split("\s*,\s*", major_csv_row[sem_index + 2])
 
         hova = self._get_valid_course_num(hova)
         bhirat_hova = self._get_valid_course_num(bhirat_hova)
@@ -82,20 +81,26 @@ class CSVdataloader(Dataloader):
     def get_majors_dict(self):
         return self._majors_dict
 
-    @staticmethod
-    def course_pair_weight_calc(c1: Course, c2: Course):
-        common_majors = c1.get_common_majors(c2)
-        cost = 0
-        for major in common_majors:
-            cost += c1.get_overlap_type_for_major(c2, major).value
+    def course_pair_weight_calc(self, c1: Course, c2: Course):
+        try:
+            return self.__course_pairs[c1][c2]
+        except KeyError:
+            if c1 not in self.__course_pairs:
+                self.__course_pairs[c1] = dict()
 
-        return cost
+            common_majors = c1.get_common_majors(c2)
+            cost = 0
+            for major in common_majors:
+                cost += c1.get_overlap_type_for_major(c2, major).value
+
+            self.__course_pairs[c1][c2] = cost
+            return cost
 
     def get_course_pair_weights(self) -> Callable[[Course, Course], float]:
         """
         Return weight for course pair.
         """
-        return CSVdataloader.course_pair_weight_calc
+        return lambda c1, c2: self.course_pair_weight_calc(c1, c2)
 
     def get_available_dates(self) -> Tuple[List[date], List[date]]:
         """

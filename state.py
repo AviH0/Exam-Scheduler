@@ -95,14 +95,16 @@ class SumEvaluator(Evaluator):
 
     def evaluate(self, state: State) -> float:
 
+        sum = 0
+
         # first check moed A and B distance
-        # for course in state.courses_dict:
-        #     A_date, B_date = state.courses_dict[course]
-        #     if abs((B_date - A_date).days) < 21:
-        #         return 100
+        for course in state.courses_dict:
+            A_date, B_date = state.courses_dict[course]
+            if abs((B_date - A_date).days) < 21:
+                sum += 1000
 
         course_list = list(state.courses_dict.keys())
-        sum = 0
+
         for i in range(len(course_list)):
             for j in range(i + 1, len(course_list)):
                 course1, course2 = course_list[i], course_list[j]
