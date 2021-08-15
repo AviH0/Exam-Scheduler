@@ -31,12 +31,12 @@ class CollisionTypes(Enum):
     """
 
     # TODO set more realistic penalties
-    HOVA_HOVA = 10
-    HOVA_BHOVA = 8
-    HOVA_BHIRA = 8
-    BHOVA_BHOVA = 3
-    BHOVA_BHIRA = 2
-    BHIRA_BHIRA = 2
+    HOVA_HOVA = 10000
+    HOVA_BHOVA = 100
+    HOVA_BHIRA = 50
+    BHOVA_BHOVA = 100
+    BHOVA_BHIRA = 10
+    BHIRA_BHIRA = 5
     NONE = 0
 
 
@@ -128,12 +128,3 @@ class Course:
 
     def __repr__(self):
         return self.number
-
-
-
-
-
-
-
-
-
