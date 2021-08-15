@@ -1,10 +1,26 @@
-from dataloader import Dataloader
+from CSVdataloader import CSVdataloader
 from solver import Solver
+from datetime import date
+from state import *
+from genetic_solver import GeneticSolver
 
 
-class ExamScheduler:
+# class ExamScheduler:
+#
+#     def __init__(self, dataloader: Dataloader, solver: Solver):
+#
+#         pass
 
 
-    def __init__(self, dataloader: Dataloader, solver: Solver):
+def main():
+    dl = CSVdataloader("data/data.csv", date(2021, 7, 1), date(2021, 8, 1), date(2021,8,20), [])
+    evaluator = SumEvaluator(dl.get_course_pair_weights())
+    solver = GeneticSolver(dl, evaluator)
+    sol = solver.solve(1000)
+    majors_dict = dl.get_majors_dict()
+    major = majors_dict["מדמח חד חוגי"]
+    print(sol.get_major_schedule_repr(major))
 
-        self.solver = solver(dataloader, evaluator)
+
+if __name__ == "__main__":
+    main()
