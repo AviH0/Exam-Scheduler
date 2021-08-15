@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Tuple, List, Set
 
 import numpy as np
@@ -33,8 +34,9 @@ class GeneticSolver(Solver):
 
     def solve(self, iterations=50):
         for _ in range(iterations):
+            print(_)
             fitness = sorted([(state, self.evaluator(state)) for state in self.population],
-                             key=lambda x: x[1], reverse=True)
+                             key=lambda x: x[1], reverse=False)
             new_population = set()
             for _ in range(len(self.population)):
                 x = self._random_select(fitness)
@@ -43,6 +45,9 @@ class GeneticSolver(Solver):
                 z = self._mutate(z)
                 new_population.add(z)
             self.population = new_population
+        fitness = sorted([(state, self.evaluator(state)) for state in self.population],
+                         key=lambda x: x[1], reverse=True)
+        return fitness[0][0]
 
     @staticmethod
     def _random_select(fitnesses: List[Tuple[State, float]]) -> State:
@@ -52,7 +57,9 @@ class GeneticSolver(Solver):
          is the fitness evaluation for that state.
         :return: A randomly selected state where high fitness implies high probability of selection.
         """
-        random_index = np.random.geometric(0.5, len(fitnesses))
+        random_index = np.random.geometric(0.5) - 1
+        if random_index >= len(fitnesses):
+            random_index = len(fitnesses) - 1
         return fitnesses[random_index][0]
 
     def _combine(self, x: State, y: State) -> State:
@@ -78,6 +85,11 @@ class GeneticSolver(Solver):
         :return: s after mutation.
         """
         if np.random.choice([True, False], p=[0.1, 0.9]):
-            course = np.random.choice(s.courses_dict.keys())
-            s.courses_dict[course][np.random.choice([0, 1])] += np.random.choice([-3, -2, -1, 1, 2, 3])
+            course = np.random.choice(list(s.courses_dict.keys()))
+            days_to_move = [timedelta(days=-1), timedelta(days=-1), timedelta(days=0), timedelta(days=0),
+                    timedelta(days=0), timedelta(days=1), timedelta(days=1)]
+            moed = np.random.choice([0, 1])
+            exam_dates = list(s.courses_dict[course])
+            exam_dates[moed] += np.random.choice(days_to_move)
+            s.courses_dict[course] = tuple(exam_dates)
         return s
