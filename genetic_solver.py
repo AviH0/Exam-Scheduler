@@ -10,7 +10,7 @@ from solver import *
 
 class GeneticSolver(Solver):
 
-    def __init__(self, loader: Dataloader, evaluator: Evaluator, initial_population=10, p_mutate=0.1,
+    def __init__(self, loader: Dataloader, evaluator: Evaluator, sem: YearSemester, initial_population=10, p_mutate=0.1,
                  p_fittness_geom=0.5):
         """
         Create a new genetic solver.
@@ -20,8 +20,8 @@ class GeneticSolver(Solver):
         :param p_mutate: Probability of a mutation during reproduction.
         :param p_fittness_geom: Probability of selection of a fit subject (Geometric)
         """
-        super(GeneticSolver, self).__init__(loader, evaluator)
-        self.population = [State(course_list=loader.get_course_list(),
+        super(GeneticSolver, self).__init__(loader, evaluator, sem)
+        self.population = [State(course_list=loader.get_course_list(sem),
                                  date_list=loader.get_available_dates())
                            for _ in range(initial_population)]
         self.__p_mutate = p_mutate

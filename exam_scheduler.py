@@ -3,8 +3,7 @@ from solver import Solver
 from datetime import date
 from state import *
 from genetic_solver import GeneticSolver
-from CSsolver import CSsolver
-from SAsolver import SAsolver
+
 
 
 # class ExamScheduler:
@@ -17,13 +16,11 @@ from SAsolver import SAsolver
 def main():
     dl = CSVdataloader("data/data.csv", date(2021, 7, 1), date(2021, 8, 1), date(2021,8,20), [])
     evaluator = SumEvaluator(dl.get_course_pair_weights())
-    # solver = GeneticSolver(dl, evaluator)
-    # sol = solver.solve(1000)
-    solver = CSsolver(dl, evaluator)
-    sol = solver.solve()
+    solver = GeneticSolver(dl, evaluator, YearSemester.SEM_A)
+    sol = solver.solve(1000)
     majors_dict = dl.get_majors_dict()
     major = majors_dict["מדמח חד חוגי"]
-    print(sol.get_major_schedule_repr(major))
+    print(sol.get_major_schedule_repr(major, YearSemester.SEM_A))
     print(evaluator.evaluate(sol))
 
 

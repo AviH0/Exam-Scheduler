@@ -42,9 +42,11 @@ class State:
 
         return str_rep
 
-    def get_major_schedule_repr(self, major: Major):
+    def get_major_schedule_repr(self, major: Major, year_sem: YearSemester):
         repr_str = ""
-        for sem in Semester:
+        for sem in MajorSemester:
+            if sem.value % 2 != year_sem.value - 1:
+                continue
             repr_str += "____Semester No. " + str(sem.value + 1) + "____\n"
             sem_courses = major.get_sem_courses(sem)
             hova = []
@@ -64,12 +66,12 @@ class State:
                 repr_str += "      " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
 
             repr_str += "bhova:   \n"
-            for course in hova:
+            for course in bhova:
                 dateA, dateB = self.courses_dict[course]
                 repr_str += "      " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
 
             repr_str += "bhira:   \n"
-            for course in hova:
+            for course in bhira:
                 dateA, dateB = self.courses_dict[course]
                 repr_str += "       " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
 

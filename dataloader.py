@@ -2,7 +2,7 @@ from abc import abstractmethod
 from typing import List, Callable, Tuple
 from datetime import date
 from datetime import timedelta
-from objects import Course
+from objects import *
 
 
 class Dataloader:
@@ -30,7 +30,7 @@ class Dataloader:
             cur_date += one_day
 
     @abstractmethod
-    def get_course_list(self) -> List[Course]:
+    def get_course_list(self, sem: YearSemester) -> List[Course]:
         """
         Return list of all courses.
         """

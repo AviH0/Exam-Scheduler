@@ -3,20 +3,20 @@ from datetime import date
 from typing import Dict, Iterable, Mapping
 
 from dataloader import Dataloader
-from objects import Course
+from objects import *
 from state import Evaluator
 
 
 class Solver:
 
 
-    def __init__(self, loader:Dataloader, evaluator:Evaluator):
+    def __init__(self, loader:Dataloader, evaluator:Evaluator, sem: YearSemester):
         """
         Create a solver for the problem data from loader with a specific evaluator.
         :param loader:
         :param evaluator:
         """
-        self.course_list = loader.get_course_list()
+        self.course_list = loader.get_course_list(sem)
         self.course_pair_evaluator = loader.get_course_pair_weights()
         self.moed_a_dates, self.moed_b_dates = loader.get_available_dates()
         self.evaluator = evaluator
