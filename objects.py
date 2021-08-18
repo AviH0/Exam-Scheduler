@@ -120,39 +120,6 @@ class Course:
         else:
             self._majors_dict[major] = [(sem, type)]
 
-    # TODO two of the funcs below are to be deleted (fortunately...)
-    def get_common_majors(self, other):
-        c1_majors = set(self._majors_dict.keys())
-        c2_majors = set(other._majors_dict.keys())
-        return c1_majors.intersection(c2_majors)
-
-    def get_overlap_type_for_major(self, other, major):
-        if self._majors_dict[major][0] != other._majors_dict[major][0]:
-            return CollisionTypes.NONE
-
-        this_type = self._majors_dict[major][1]
-        other_type = other._majors_dict[major][1]
-
-        if this_type == other_type:
-            if this_type == CourseType.BHIRA:
-                return CollisionTypes.BHIRA_BHIRA
-            if this_type == CourseType.HOVA:
-                return CollisionTypes.HOVA_HOVA
-            if this_type == CourseType.BHIRAT_HOVA:
-                return CollisionTypes.BHOVA_BHOVA
-
-        if (this_type == CourseType.BHIRA and other_type == CourseType.HOVA) or \
-            (other_type == CourseType.BHIRA and this_type == CourseType.HOVA):
-            return CollisionTypes.HOVA_BHIRA
-
-        if (this_type == CourseType.BHIRAT_HOVA and other_type == CourseType.HOVA) or \
-            (other_type == CourseType.BHIRAT_HOVA and this_type == CourseType.HOVA):
-            return CollisionTypes.HOVA_BHOVA
-
-        if (this_type == CourseType.BHIRA and other_type == CourseType.BHIRAT_HOVA) or \
-            (other_type == CourseType.BHIRA and this_type == CourseType.BHIRAT_HOVA):
-            return CollisionTypes.BHOVA_BHIRA
-
     def __eq__(self, other):
         return self.number == other.number
 

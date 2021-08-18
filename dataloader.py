@@ -7,24 +7,26 @@ from objects import *
 
 class Dataloader:
 
-    def __init__(self, startA: date, startB: date, end: date, not_allowed: List[date]):
+    def __init__(self, startA: date, endA: date, startB: date, endB: date, not_allowed: List[date]):
         self.startA = startA
+        self.endA = endA
         self.startB = startB
-        self.end = end
+        self.endB = endB
+
         self.not_allowed = not_allowed
         self.moedA_dates = []
         self.moedB_dates = []
 
-
     def _create_available_dates(self):
         one_day = timedelta(days=1)
         cur_date = self.startA
-        while cur_date != self.startB:
+        while cur_date != self.endA:
             if cur_date.isoweekday() != 6 and cur_date not in self.not_allowed:
                 self.moedA_dates.append(cur_date)
             cur_date += one_day
 
-        while cur_date != self.end:
+        cur_date = self.startB
+        while cur_date != self.endB:
             if cur_date.isoweekday() != 6 and cur_date not in self.not_allowed:
                 self.moedB_dates.append(cur_date)
             cur_date += one_day
