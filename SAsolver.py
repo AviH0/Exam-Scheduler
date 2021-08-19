@@ -24,9 +24,14 @@ MOVE_ONE_GENERATOR = "MOVE_ONE"
 MOVE_TWO_GENERATOR = "MOVE_TWO"
 GENERATORS = [SWAP_GENERATOR, MOVE_TWO_GENERATOR, MOVE_ONE_GENERATOR]
 DEFAULT_T0 = 1200
-ITERATION_N = 40000
-SUB_GROUP_N = 2
+ITERATION_N = 60000
+SUB_GROUP_N = [1,2,3]
 
+
+# TODO: ERASE!!!!
+STAGE2_PER_I = 0
+RE_GEN_I = 1
+RE_BEST_I = 2
 
 class SAstate(State):
 
@@ -40,18 +45,23 @@ class SAstate(State):
         self.bounds = bounds
 
     def get_successor(self, sub_group_n: int, generator: str):
-        # TODO: should we update the total score here? it would be faster since we won't have to recalculate everything
-        # TODO: should we make sure we get a possible successor? hard constraints might be too easy to violate,
-        #  giving us very high prob for wrong solutions and a waist of time
+        """
+            Creates successor by effecting (len(course_list) choose sub_group_n) courses through generator action
+        type.
+        """
         orig_state = SAstate(bounds=self.bounds,
                              courses_and_dates={c: self.courses_dict[c] for c in self.courses_dict})
         courses2move = sample(self.course_list, sub_group_n)
         for course in courses2move:
+
+            # swaps both moed dates between two courses
             if generator == SWAP_GENERATOR:
                 course2swap = choice(self.course_list)
                 dates2save = self.courses_dict[course]
                 self.courses_dict[course] = self.courses_dict[course2swap]
                 self.courses_dict[course2swap] = dates2save
+
+            # moves both of the moeds of the given course a day forwards or backwards
             elif generator == MOVE_TWO_GENERATOR:
                 i = 0
                 new_dates = 0
@@ -59,18 +69,17 @@ class SAstate(State):
                     direction = choice([-1, 1])
                     dates = self.courses_dict[course]
                     new_dates = dates[0] + timedelta(days=direction), dates[1] + timedelta(days=direction)
-                    x = new_dates[1] - new_dates[0]
                     if self.bounds[0][0] <= new_dates[0] <= self.bounds[0][1] and \
                             self.bounds[1][0] <= new_dates[1] <= self.bounds[1][1] and new_dates[1] - new_dates[0] >= timedelta(days=21):
                         break
                     i += 1
                 if i < 100:
                     self.courses_dict[course] = new_dates
+
+            # moves one of the moeds of the given course a day forwards or backwards
             elif generator == MOVE_ONE_GENERATOR:
                 i = 0
-                new_date = 0
                 new_dates = 0
-                moed = 0
                 dates = self.courses_dict[course]
                 while i < 100:
                     direction = choice([-1, 1])
@@ -80,7 +89,6 @@ class SAstate(State):
                         new_dates = (new_date, dates[1])
                     else:
                         new_dates = (dates[0], new_date)
-                    x = new_dates[1] - new_dates[0]
                     if self.bounds[moed][0] <= new_date <= self.bounds[moed][1] and new_dates[1] - new_dates[0] >= timedelta(days=21):
                         break
                     i += 1
@@ -99,58 +107,76 @@ class SAsolver(Solver):
         self.state = SAstate(bounds=bounds,
                              course_list=loader.get_course_list(sem),
                              date_list=loader.get_available_dates())
+        self.cur_pen = self.evaluator(self.state)
         self.course_list = loader.get_course_list(sem)
         self.weights = loader.get_course_pair_weights()
         self.dates = loader.get_available_dates()
         self.bounds = bounds
 
-    def solve(self, T0 = None) -> State:
-        def reduce_T_lin(T: float):
+    def solve(self, vals= None, T0 = None):  # todo: add  -> State and take off vars[]
+        def reduce_T_lin(T: float) -> float:
             if T > 200:
                 T -= 1
             elif T > 20:
-                T -= 0.009
+                T -= linear_reduce_val
             else:
                 T = T * 0.1
             return T
 
+        # declare temperature / relocating values
+        if vals is not None:
+            linear_reduce_val = 180/(ITERATION_N*vars[STAGE2_PER_I])
+            re_gen_val = vars[RE_GEN_I]
+            re_best_val = vars[RE_BEST_I]
+        else:
+            linear_reduce_val = 0.0045
+            re_gen_val = 300
+            re_best_val = 5000
+
+        # algorithm
         T = T0 if T0 else DEFAULT_T0
-        generator = None
-        changes = [0,0,0,0]
+        generator, subgroup_size = None, None
+        changes = [0,0,0,0,0]  # todo: delete after happy with search values
         best = self.state
         best_pen = float("inf")
         for k in range(ITERATION_N):
             T = reduce_T_lin(T)
-            if k % 1000 == 0:
-                generator = choice(GENERATORS)
-            if k % 1000 == 0 and k < 6000:
+            if k % re_gen_val == 0:
+                generator = MOVE_ONE_GENERATOR if k > 50000 else choice(GENERATORS)
+                subgroup_size = choice([1,2]) if k > 50000 else choice(SUB_GROUP_N)
+
+            # relocate back to best state found so far
+            if k % re_best_val == 0 and k < 50000:
                 self.state = best
-            orig_state = self.state.get_successor(SUB_GROUP_N, generator)
+
+            # try something new
+            orig_state = self.state.get_successor(subgroup_size, generator)
             old_pen = self.evaluator(orig_state)
             new_pen = self.evaluator(self.state)
-            if new_pen < best_pen:
+
+            if new_pen < best_pen:  # update best so far
                 best = self.state
                 best_pen = new_pen
             if new_pen < old_pen:
-                print(k, "  : **********************")
+                if k > 41800:
+                    changes[4] += 1
                 changes[0] += 1
+                self.cur_pen = new_pen
                 continue
-            if T == 0:
+
+            if T == 0:  # don't save if we are towards the end
                 self.state = orig_state
-                print(k, "  : !!!!!!!!!!!!!!!!!!!!")
                 changes[1] += 1
                 continue
-            diff = abs(old_pen - new_pen)
-            calc = exp(-(diff)/T)
+            calc = exp(- abs(old_pen - new_pen)/T)
             if uniform(0, 1) < calc:
-                print(k, ": calc:   ", calc, " T:  ", T,  " diff:  ", diff,  "  : &&&&&&&&&&&&&&&&&&& generator: ", generator )
                 changes[2] += 1
                 continue
-            print(k, "  : ################")
             changes[3] += 1
             self.state = orig_state
 
         print(f"Changes made:\nuphill: {changes[0]}\nstayed the same towards the end: {changes[1]}\n"
-              f"risky mistakes: {changes[2]}\nno change: {changes[3]}")
+              f"risky mistakes: {changes[2]}\nno change: {changes[3]}\nuphills at end: {changes[4]}")
+        # return self.state, changes
         return self.state
 
