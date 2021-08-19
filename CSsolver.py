@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import List, Set, Dict, Tuple, Iterable, Sequence
 
-import solver
+from solver import *
 from dataloader import Dataloader
 from objects import Course
 from state import Evaluator, State
@@ -35,7 +35,7 @@ class CSstate(State):
         return True
 
 
-class CSsolver(solver):
+class CSsolver(Solver):
     """
         Class of solvers that build tests schedules according to constraint satisfaction backtracking algorithms.
     """
@@ -74,10 +74,9 @@ class CSsolver(solver):
         """
         new_course_dict = dict()
         for course2compare in courses_not_included:
-            if course2compare == new_course:
-                continue
-            new_course_dict[course2compare] = courses_not_included[course2compare] +\
-                                              self.course_pair_evaluator((new_course, course2compare))
+            if course2compare != new_course:
+                new_course_dict[course2compare] = courses_not_included[course2compare] +\
+                                                  self.course_pair_evaluator((new_course, course2compare))
 
         return new_course_dict
 
@@ -122,7 +121,7 @@ class CSsolver(solver):
             dates_penalties[date] = self._cal_penalty(state, courses_included, new_course,
                                                       (date, date+timedelta(days=21)))
 
-        return self._get_top_10(dates_penalties)
+        return self._get_top_10(dates_penalties)  # todo send with traverse =False? we want lowest pen days
 
     def _backtracker(self, state: CSstate, solutions: Set[State], courses_included: Set[Course] = None,
                     courses_not_included: Dict[Course, float] = None):
