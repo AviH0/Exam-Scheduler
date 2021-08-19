@@ -1,3 +1,4 @@
+import copy
 from datetime import date, timedelta
 from typing import List, Set, Dict, Tuple, Iterable, Sequence
 
@@ -32,14 +33,14 @@ class SAstate(State):
     def __init__(self, courses_and_dates: Dict[Course, Tuple[date, date]] = None,
                  course_list: Iterable[Course] = None, date_list: Tuple[Sequence[date], Sequence[date]] = None):
         super(SAstate, self).__init__(courses_and_dates, course_list, date_list)
-        self.course_list = self.courses_dict.keys()
+        self.course_list = [c for c in self.courses_dict.keys()]
         self.date_list = date_list
 
     def get_successor(self, sub_group_n: int, generator: str):
         # TODO: should we update the total score here? it would be faster since we won't have to recalculate everything
         # TODO: should we make sure we get a possible successor? hard constraints might be too easy to violate,
         #  giving us very high prob for wrong solutions and a waist of time
-        orig_state = SAstate(courses_and_dates=self.courses_dict)
+        orig_state = SAstate(courses_and_dates={c: self.courses_dict[c] for c in self.courses_dict})
         courses2move = sample(self.course_list, sub_group_n)
         for course in courses2move:
             if generator == SWAP_GENERATOR:
@@ -77,15 +78,18 @@ class SAsolver(Solver):
 
     def __init__(self, loader: Dataloader, evaluator: Evaluator, sem: YearSemester):
         super(SAsolver, self).__init__(loader, evaluator, sem)
-        self.state = SAstate()
+        self.state = SAstate(course_list=loader.get_course_list(sem),
+                             date_list=loader.get_available_dates())
         self.course_list = loader.get_course_list(sem)
         self.weights = loader.get_course_pair_weights()
         self.dates = loader.get_available_dates()
 
     def solve(self, T0 = None) -> State:
-
         def reduce_T_lin(T: float):
-            T -= 1 if T > 1 else 0.0001
+            if T > 1 :
+                T -= 1
+            else:
+                T = T*0.1
             return T
 
         T = T0 if T0 else DEFAULT_T0
@@ -98,9 +102,18 @@ class SAsolver(Solver):
             old_pen = self.evaluator(orig_state)
             new_pen = self.evaluator(self.state)
             if new_pen < old_pen:
+                print(k, "  : **********************")
                 continue
-            elif uniform(0, 1) < exp(-(abs(old_pen - new_pen))/ T):
+            if T == 0:
+                self.state = orig_state
+                print(k, "  : !!!!!!!!!!!!!!!!!!!!")
                 continue
+            diff = abs(old_pen - new_pen)
+            calc = exp(-(diff)/T)
+            if uniform(0, 1) < calc:
+                print(k, ": calc:   ", calc, " T:  ", T,  " diff:  ", diff,  "  : &&&&&&&&&&&&&&&&&&&")
+                continue
+            print(k, "  : ################")
             self.state = orig_state
 
         return self.state
