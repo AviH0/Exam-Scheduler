@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import List, Set, Dict, Tuple, Iterable, Sequence
 
-import solver
+from solver import *
 from dataloader import Dataloader
 from objects import Course
 from state import Evaluator, State
@@ -32,7 +32,7 @@ class SAstate(State):
     def __init__(self, courses_and_dates: Dict[Course, Tuple[date, date]] = None,
                  course_list: Iterable[Course] = None, date_list: Tuple[Sequence[date], Sequence[date]] = None):
         super(SAstate, self).__init__(courses_and_dates, course_list, date_list)
-        self.course_list = courses_and_dates.keys()
+        self.course_list = self.courses_dict.keys()
         self.date_list = date_list
 
     def get_successor(self, sub_group_n: int, generator: str):
@@ -73,15 +73,16 @@ class SAstate(State):
     #         course2swap = choice(self.course_list)
 
 
-class SAsolver(solver):
+class SAsolver(Solver):
 
-    def __init__(self, loader: Dataloader, evaluator: Evaluator):
-        super(SAsolver, self).__init__(loader, evaluator)
-        self.course_list = loader.get_course_list()
+    def __init__(self, loader: Dataloader, evaluator: Evaluator, sem: YearSemester):
+        super(SAsolver, self).__init__(loader, evaluator, sem)
+        self.state = SAstate()
+        self.course_list = loader.get_course_list(sem)
         self.weights = loader.get_course_pair_weights()
         self.dates = loader.get_available_dates()
 
-    def solve(self, state: SAstate, T0 = None) -> Set[State]:
+    def solve(self, T0 = None) -> State:
 
         def reduce_T_lin(T: float):
             T -= 1 if T > 1 else 0.0001
@@ -93,13 +94,14 @@ class SAsolver(solver):
             T = reduce_T_lin(T)
             if k % 1000 == 0:
                 generator = choice(GENERATORS)
-            orig_state = state.get_successor(SUB_GROUP_N, generator)
+            orig_state = self.state.get_successor(SUB_GROUP_N, generator)
             old_pen = self.evaluator(orig_state)
-            new_pen = self.evaluator(state)
+            new_pen = self.evaluator(self.state)
             if new_pen < old_pen:
                 continue
             elif uniform(0, 1) < exp(-(abs(old_pen - new_pen))/ T):
                 continue
-            state = orig_state
-        pass
+            self.state = orig_state
+
+        return self.state
 
