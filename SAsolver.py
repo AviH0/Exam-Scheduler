@@ -23,9 +23,9 @@ SWAP_GENERATOR = "SWAP"
 MOVE_ONE_GENERATOR = "MOVE_ONE"
 MOVE_TWO_GENERATOR = "MOVE_TWO"
 GENERATORS = [SWAP_GENERATOR, MOVE_TWO_GENERATOR, MOVE_ONE_GENERATOR]
-DEFAULT_T0 = 3000
-ITERATION_N = 10000
-SUB_GROUP_N = 5
+DEFAULT_T0 = 1200
+ITERATION_N = 40000
+SUB_GROUP_N = 2
 
 
 class SAstate(State):
@@ -59,8 +59,9 @@ class SAstate(State):
                     direction = choice([-1, 1])
                     dates = self.courses_dict[course]
                     new_dates = dates[0] + timedelta(days=direction), dates[1] + timedelta(days=direction)
+                    x = new_dates[1] - new_dates[0]
                     if self.bounds[0][0] <= new_dates[0] <= self.bounds[0][1] and \
-                            new_dates[1] >= self.bounds[1][0] >= new_dates[1]:
+                            self.bounds[1][0] <= new_dates[1] <= self.bounds[1][1] and new_dates[1] - new_dates[0] >= timedelta(days=21):
                         break
                     i += 1
                 if i < 100:
@@ -68,34 +69,26 @@ class SAstate(State):
             elif generator == MOVE_ONE_GENERATOR:
                 i = 0
                 new_date = 0
+                new_dates = 0
                 moed = 0
                 dates = self.courses_dict[course]
                 while i < 100:
                     direction = choice([-1, 1])
                     moed = choice([0, 1])
                     new_date = dates[moed] + timedelta(days=direction)
-                    if self.bounds[moed][0] <= new_date <= self.bounds[moed][1]:
+                    if moed == 0:
+                        new_dates = (new_date, dates[1])
+                    else:
+                        new_dates = (dates[0], new_date)
+                    x = new_dates[1] - new_dates[0]
+                    if self.bounds[moed][0] <= new_date <= self.bounds[moed][1] and new_dates[1] - new_dates[0] >= timedelta(days=21):
                         break
                     i += 1
                 if i < 100:
-                    if moed == 0:
-                        self.courses_dict[course] = (new_date, dates[1])
-                    else:
-                        self.courses_dict[course] = (dates[0], new_date)
+                    self.courses_dict[course] = new_dates
 
 
         return orig_state
-    # start of 2nd to do of only giving back solutions that match hard constraints
-    # def check_hard_constraints(self, course_a, dates_a, course_b, dates_b) -> float:
-    #     """Checks to make sure that swapping these courses """
-    #     for course2comp in self.course_list:
-    #         if course2comp == course_a or course2comp == course_b:
-    #             continue
-    #
-    #
-    # def swap_generator(self, course):
-    #     for i in range(3):
-    #         course2swap = choice(self.course_list)
 
 
 class SAsolver(Solver):
@@ -113,35 +106,51 @@ class SAsolver(Solver):
 
     def solve(self, T0 = None) -> State:
         def reduce_T_lin(T: float):
-            if T > 1 :
+            if T > 200:
                 T -= 1
+            elif T > 20:
+                T -= 0.009
             else:
-                T = T*0.1
+                T = T * 0.1
             return T
 
         T = T0 if T0 else DEFAULT_T0
         generator = None
+        changes = [0,0,0,0]
+        best = self.state
+        best_pen = float("inf")
         for k in range(ITERATION_N):
             T = reduce_T_lin(T)
             if k % 1000 == 0:
                 generator = choice(GENERATORS)
+            if k % 1000 == 0 and k < 6000:
+                self.state = best
             orig_state = self.state.get_successor(SUB_GROUP_N, generator)
             old_pen = self.evaluator(orig_state)
             new_pen = self.evaluator(self.state)
+            if new_pen < best_pen:
+                best = self.state
+                best_pen = new_pen
             if new_pen < old_pen:
                 print(k, "  : **********************")
+                changes[0] += 1
                 continue
             if T == 0:
                 self.state = orig_state
                 print(k, "  : !!!!!!!!!!!!!!!!!!!!")
+                changes[1] += 1
                 continue
             diff = abs(old_pen - new_pen)
             calc = exp(-(diff)/T)
             if uniform(0, 1) < calc:
-                print(k, ": calc:   ", calc, " T:  ", T,  " diff:  ", diff,  "  : &&&&&&&&&&&&&&&&&&&")
+                print(k, ": calc:   ", calc, " T:  ", T,  " diff:  ", diff,  "  : &&&&&&&&&&&&&&&&&&& generator: ", generator )
+                changes[2] += 1
                 continue
             print(k, "  : ################")
+            changes[3] += 1
             self.state = orig_state
 
+        print(f"Changes made:\nuphill: {changes[0]}\nstayed the same towards the end: {changes[1]}\n"
+              f"risky mistakes: {changes[2]}\nno change: {changes[3]}")
         return self.state
 
