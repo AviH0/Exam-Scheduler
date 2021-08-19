@@ -64,13 +64,13 @@ class State:
                     bhira.append(course)
 
             repr_str += "hova:   \n"
-            self._get_major_schedule_repr_helper(hova, repr_str)
+            repr_str = self._get_major_schedule_repr_helper(hova, repr_str)
 
             repr_str += "bhova:   \n"
-            self._get_major_schedule_repr_helper(bhova, repr_str)
+            repr_str = self._get_major_schedule_repr_helper(bhova, repr_str)
 
             repr_str += "bhira:   \n"
-            self._get_major_schedule_repr_helper(bhira, repr_str)
+            repr_str = self._get_major_schedule_repr_helper(bhira, repr_str)
 
         return repr_str
 
@@ -84,6 +84,7 @@ class State:
                 repr_str += "      " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
             else:
                 repr_str += "      " + course.number + ":  NoInfo\n"
+        return repr_str
 
 
 
