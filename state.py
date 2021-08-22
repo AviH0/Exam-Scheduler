@@ -43,6 +43,9 @@ class State:
         return str_rep
 
     def get_major_schedule_repr(self, major: Major, year_sem: YearSemester):
+        """
+        This function returns a string representation of the exam schedules of a certain major for semester A or B
+        """
         repr_str = ""
         for sem in MajorSemester:
             if sem.value % 2 != year_sem.value - 1:
@@ -61,21 +64,29 @@ class State:
                     bhira.append(course)
 
             repr_str += "hova:   \n"
-            for course in hova:
-                dateA, dateB = self.courses_dict[course]
-                repr_str += "      " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
+            repr_str = self._get_major_schedule_repr_helper(hova, repr_str)
 
             repr_str += "bhova:   \n"
-            for course in bhova:
-                dateA, dateB = self.courses_dict[course]
-                repr_str += "      " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
+            repr_str = self._get_major_schedule_repr_helper(bhova, repr_str)
 
             repr_str += "bhira:   \n"
-            for course in bhira:
-                dateA, dateB = self.courses_dict[course]
-                repr_str += "       " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
+            repr_str = self._get_major_schedule_repr_helper(bhira, repr_str)
 
         return repr_str
+
+    def _get_major_schedule_repr_helper(self, courses: List[Course], repr_str: str):
+        """
+        Adds to the string representation the dates of the given courses.
+        """
+        for course in courses:
+            if course in self.courses_dict:
+                dateA, dateB = self.courses_dict[course]
+                repr_str += "      " + course.number + ":  " + str(dateA) + "  " + str(dateB) + "\n"
+            else:
+                repr_str += "      " + course.number + ":  NoInfo\n"
+        return repr_str
+
+
 
 class Evaluator:
 
