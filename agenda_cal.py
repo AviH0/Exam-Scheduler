@@ -1,15 +1,27 @@
+import tkinter
+
 from tkcalendar import Calendar
 
 class Agenda(Calendar):
 
-    def __init__(self, master=None, **kw):
+    def __init__(self, master=None, rightclick_cb=None, **kw):
         Calendar.__init__(self, master, **kw)
+        self.__right_click_callback = rightclick_cb
         # change a bit the options of the labels to improve display
         for i, row in enumerate(self._calendar):
             for j, label in enumerate(row):
-                self._cal_frame.rowconfigure(i + 1, uniform=1, minsize=80)
+                self._cal_frame.rowconfigure(i + 1, uniform=1, minsize=100)
                 self._cal_frame.columnconfigure(j + 1, uniform=1, minsize=100)
                 label.configure(justify="center", anchor="n", padding=(1, 4))
+                label.bind("<Button-3>", lambda event: self.__on_rightclick(event))
+                label.grid_propagate(0)
+
+    def __on_rightclick(self, event):
+        event.widget.event_generate("<Button-1>")
+        self.after_idle(lambda: self.__right_click_callback(event))
+
+    def set_rightclick_callback(self, cb):
+        self.__right_click_callback = cb
 
     def _display_days_without_othermonthdays(self):
         year, month = self._date.year, self._date.month
