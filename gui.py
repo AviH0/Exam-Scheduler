@@ -1,11 +1,16 @@
+import asyncio
+import contextvars
+import functools
+from asyncio import events
 import datetime
+import time
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import Tk, Frame
 from typing import Dict, Sequence
+from tkinter.messagebox import showerror
+from tkinter.simpledialog import askstring
 import tkinter.filedialog
-
-import tkcalendar
 from tkcalendar import DateEntry
 
 from CSVdataloader import CSVdataloader
@@ -14,6 +19,16 @@ from exam_scheduler import run_solver, GENETIC_SOL, ExamScheduler
 from genetic_solver import GeneticSolver
 from objects import YearSemester
 from state import SumEvaluator
+
+HARD_CODED_EXAMS_TAG = 'hard_coded_exams'
+
+NO_EXAMS_TAG = 'forbidden'
+
+DATES_INFO_TAG = 'date_config'
+
+MOADEI_B_TAG = '2nd_round'
+
+MOADEI_A_TAG = '1st_round'
 
 WINDOW_SIZE = '1280x800'
 WINDOW_TITLE = 'Exam Scheduler'
@@ -44,6 +59,7 @@ class ExamSchedulerGui:
         self.root.title(WINDOW_TITLE)
 
         self.__exam_scheduler = None
+        self.__scheduled_courses = dict()
 
         cp_frame_label = tk.Label(self.root, text="Setup", font=HEADER1_FONT)
         cp_frame_label.grid(row=0, column=0)
@@ -186,10 +202,15 @@ class ExamSchedulerGui:
         self.__choose_solver.set_widget(ttk.Combobox, values=["Genetic Algorithm", "Simulated Annealing"])
         self.__choose_solver.pack(expand=True, fill=tk.X, pady=5, padx=5)
 
-        button = tk.Button(dates_frame, text="Solve", command=lambda: self.run_solution())
+        button = tk.Button(dates_frame, text="Solve", command=lambda: asyncio.run(self.run_solution()))
         button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
 
-    def run_solution(self):
+        self.__prog_bar_frame = tk.Frame(dates_frame)
+        self.__prog_bar_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=10, pady=15)
+
+
+
+    async def run_solution(self):
         dl_a = CSVdataloader(self.maj_file_input.widget.get_selected_filename(),
                              self.sem_a_start_entry.widget.get_date(),
                              self.sem_a_a_end_entry.widget.get_date(),
@@ -199,7 +220,25 @@ class ExamSchedulerGui:
                              self.sem_a_courses_file_input.widget.get_selected_filename(),
                              self.sem_b_courses_file_input.widget.get_selected_filename())
         evaluator_a = SumEvaluator(dl_a.get_course_pair_weights())
-        solver, sol = run_solver(GENETIC_SOL, dl_a, evaluator_a)
+
+        def run():
+            solver, sol = run_solver(GENETIC_SOL, dl_a, evaluator_a)
+            return solver, sol
+        async def update():
+            while True:
+                self.root.update()
+                await asyncio.sleep(0.01)
+
+        pb = ttk.Progressbar(self.__prog_bar_frame, length=1, mode='indeterminate', orient='horizontal')
+        pb.pack(fill=tk.BOTH, expand=True)
+        pb.start()
+        run_task = asyncio.create_task(to_thread(run))
+        update = asyncio.create_task(update())
+        await asyncio.wait((run_task, update), return_when=asyncio.FIRST_COMPLETED)
+        solver, sol = run_task.result()
+        update.cancel()
+        pb.stop()
+        pb.destroy()
         solution = solver.export_solution()
         self.agenda.see(self.sem_a_start_entry.widget.get_date())
         for d in solution:
@@ -244,6 +283,9 @@ class ExamSchedulerGui:
         sem_b_menu.add_command(label="Exams 2nd Round End",
                                command=lambda: self.update_selected_dates(self.sem_b_b_end_entry,
                                                                           update_from_selection=True))
+
+        top_menu.add_command(label="Schedule Course on this date",
+                             command=lambda: self.__schedule_course_dialog(self.agenda.selection_get()))
 
         is_forbidden = tk.BooleanVar()
         is_forbidden.set(not not self.agenda.get_calevents(self.agenda.selection_get(), "forbidden"))
@@ -294,10 +336,10 @@ class ExamSchedulerGui:
         self.update_tags()
 
     def update_tags(self):
-        self.agenda.tag_config('1st_round', background='DodgerBlue2', foreground='red')
-        self.agenda.tag_config('2nd_round', background='cyan2', foreground='green')
-        self.agenda.tag_config('date_config', foreground='yellow')
-        self.agenda.tag_config('forbidden', background='red', foreground='yellow')
+        self.agenda.tag_config(MOADEI_A_TAG, background='DodgerBlue2', foreground='red')
+        self.agenda.tag_config(MOADEI_B_TAG, background='cyan2', foreground='green')
+        self.agenda.tag_config(DATES_INFO_TAG, foreground='yellow')
+        self.agenda.tag_config(NO_EXAMS_TAG, background='red', foreground='yellow')
 
     def forbid_date(self, is_forbidden: bool):
         date_to_forbid = self.agenda.selection_get()
@@ -315,6 +357,29 @@ class ExamSchedulerGui:
         self.sem_a_courses_file_input.widget.set_enabled(False)
         self.sem_b_courses_file_input.widget.set_enabled(False)
         self.__load_button.configure(enabled=False)
+
+    def __schedule_course_dialog(self, date):
+        selected_moed = None
+        if self.agenda.get_calevents(date, MOADEI_A_TAG):
+            selected_moed = 0
+        if self.agenda.get_calevents(date, MOADEI_A_TAG):
+            selected_moed = 1
+        if selected_moed is None:
+            showerror("Bad Date!", "Selected date is not in range of exam dates!")
+            return
+        message = f"Schedule course Moed {['A', 'B'][selected_moed]} for {date}"
+        course = askstring("Input course...", message)
+        while not True:  # todo check if course number is valid
+            showerror("Bad Course!", "Invalid course number, please try again")
+            course = askstring("Input course...", message)
+        self.__scheduled_courses[course] = [(date, None), (None, date)][selected_moed]
+        self.agenda.calevent_remove(tag=HARD_CODED_EXAMS_TAG)
+        for course in self.__scheduled_courses:
+            moed_a, moed_b = self.__scheduled_courses[course]
+            if moed_a:
+                self.agenda.calevent_create(moed_a, course, [HARD_CODED_EXAMS_TAG])
+            if moed_b:
+                self.agenda.calevent_create(moed_b, course, [HARD_CODED_EXAMS_TAG])
 
 
 class SelectFileFrame(Frame):
@@ -343,6 +408,18 @@ class SelectFileFrame(Frame):
         self.field.configure(enabled=enabled)
         self.browse_button.configure(enabled=enabled)
 
+async def to_thread(func, *args, **kwargs):
+    """Asynchronously run function *func* in a separate thread.
+    Any *args and **kwargs supplied for this function are directly passed
+    to *func*. Also, the current :class:`contextvars.Context` is propogated,
+    allowing context variables from the main thread to be accessed in the
+    separate thread.
+    Return a coroutine that can be awaited to get the eventual result of *func*.
+    """
+    loop = events.get_running_loop()
+    ctx = contextvars.copy_context()
+    func_call = functools.partial(ctx.run, func, *args, **kwargs)
+    return await loop.run_in_executor(None, func_call)
 
 if __name__ == '__main__':
     gui = ExamSchedulerGui()
