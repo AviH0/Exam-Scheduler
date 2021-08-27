@@ -1,5 +1,6 @@
 import datetime
 import tkinter as tk
+import tkinter.ttk as ttk
 from tkinter import Tk, Frame
 from typing import Dict, Sequence
 import tkinter.filedialog
@@ -57,7 +58,8 @@ class ExamSchedulerGui:
                              rightclick_cb=lambda event: self.on_calendar_rightclick(event),
                              firstweekday="sunday", selectbackground='yellow', selectforeground='black',
                              disabledselectbackground='yellow', disabledselectforeground='black',
-                             weekenddays=[7, 7])
+                             weekenddays=[7, 7],
+                             normalbackground='gray60')
         self.agenda.pack(fill='both', expand=True)
 
         self.build_cp_frame(self.cp_frame)
@@ -180,6 +182,10 @@ class ExamSchedulerGui:
                                            lambda x: self.update_selected_dates(self.sem_b_b_end_entry))
         self.sem_b_b_end_entry.pack(expand=True, fill=tk.X, pady=5, padx=5)
 
+        self.__choose_solver = WidgetWithLabel(dates_frame, "Solver Algorithm")
+        self.__choose_solver.set_widget(ttk.Combobox, values=["Genetic Algorithm", "Simulated Annealing"])
+        self.__choose_solver.pack(expand=True, fill=tk.X, pady=5, padx=5)
+
         button = tk.Button(dates_frame, text="Solve", command=lambda: self.run_solution())
         button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
 
@@ -252,7 +258,6 @@ class ExamSchedulerGui:
         self.agenda.calevent_remove(tag="date_config")
         if update_from_selection:
             date_entry.widget.set_date(self.currently_selected_date.get())
-            # self.agenda.calevent_create(self.agenda.selection_get(), date_entry.label['text'], "date_config")
 
         date_a: datetime.date = self.sem_a_start_entry.widget.get_date()
         self.agenda.calevent_create(date_a, self.sem_a_start_entry.label['text'], 'date_config')

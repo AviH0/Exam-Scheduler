@@ -1,7 +1,7 @@
 import tkinter
 
 from tkcalendar.calendar_ import *
-
+from tkinter.scrolledtext import ScrolledText
 
 import tkinter as tk
 
@@ -11,10 +11,9 @@ class AgendaLabel(ttk.Label):
     def __init__(self, master=None, **kwargs):
         self.frame = ttk.Frame(master)
         super(AgendaLabel, self).__init__(self.frame, **kwargs)
-        self.agenda = tk.Label(self.frame, height=4, width=18, font=(None, 7))
+        self.agenda = ScrolledText(self.frame, height=4, width=20, wrap=tk.WORD, background='gray70', font=(None, 7), state='disabled')
 
     def configure(self, cnf=None, **kw):
-        super(AgendaLabel, self).configure(cnf, **kw)
         kkw = dict()
         if 'text' in kw and not kw['text']:
             kkw['text'] = kw['text']
@@ -22,6 +21,7 @@ class AgendaLabel(ttk.Label):
             kkw['foreground'] = kw['foreground']
         if 'background' in kw:
             kkw['background'] = kw['background']
+        super(AgendaLabel, self).configure(cnf, **kw)
         self.agenda.configure(cnf, **kkw)
 
     def pack(self, *args, **kwargs):
@@ -31,11 +31,15 @@ class AgendaLabel(ttk.Label):
 
     def grid(self, *args, **kwargs):
         self.frame.grid(*args, **kwargs)
-        super(AgendaLabel, self).pack(side='top', expand=True, fill='both')
+        super(AgendaLabel, self).pack(side='top', expand=False, fill='x', ipady=1, pady=0)
         self.agenda.pack(side='bottom', expand=True, fill='both')
 
     def set_agenda_text(self, text: str):
-        self.agenda.configure(text=text)
+        self.agenda.configure(state=tk.NORMAL)
+        self.agenda.delete("1.0", "end")
+        self.agenda.insert("end", text, "text")
+        self.agenda.tag_config("text", justify=tk.CENTER, font=(None, 7))
+        self.agenda.configure(state=tk.DISABLED)
 
     def bind(self, sequence=None, func=None, add=None):
         super(AgendaLabel, self).bind(sequence, func, add)
