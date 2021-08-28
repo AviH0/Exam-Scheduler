@@ -8,40 +8,32 @@ import re
 
 class CSVdataloader(Dataloader):
 
-    def __init__(self, major_data_dir: str, startA: date, endA: date,
-                 startB: date, endB: date, not_allowed: List[date],
-                 sem_A_courses_data_dir: str, sem_B_courses_data_dir: str):
+    def __init__(self, major_data_dir: str, courses_data_dir: str,
+                 startA: date, endA: date, startB: date, endB: date, not_allowed: List[date],
+                 sem: YearSemester):
 
         super().__init__(startA, endA, startB, endB, not_allowed)
         super()._create_available_dates()
 
         self.__course_pairs: Dict[Course, Dict[Course, float]] = dict()
-        self.courses_with_exams: Dict[str: str] = {}    # courses with exams. Mapping course num to its name
-        self._courses_A: Dict[str: Course] = {}         # dictionary of semester A courses.
-        self._courses_B: Dict[str: Course] = {}         # dictionary of semester B courses.
+        self.courses_with_exams_names: Dict[str: str] = {}    # courses with exams. Mapping course num to its name
+        self._courses: Dict[str: Course] = {}         # dictionary of course number to objects
         self._majors_dict: Dict[str: Major] = {}        # mapping major name to major object
-
-        self._parse_course_list_files(sem_A_courses_data_dir, sem_B_courses_data_dir)
+        self.sem = sem
+        self._parse_course_list_files(courses_data_dir)
         self._parse_majors_data(major_data_dir)
 
-    def _parse_course_list_files(self, semA_courses_data_dir: str, semB_courses_data_dir: str):
+    def _parse_course_list_files(self, _courses_data_dir: str):
         """
         The function reads the courses-list files, in order to get the number and names of the courses
         that require and exam.
         """
-        with open(semA_courses_data_dir, encoding='utf-8') as csv_file:
+        with open(_courses_data_dir, encoding='utf-8') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             for course_row in csv_reader:
-                course_num = course_row[3]
-                course_name = course_row[2]
-                self.courses_with_exams[course_num] = course_name
-
-        with open(semB_courses_data_dir, encoding='utf-8') as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            for course_row in csv_reader:
-                course_num = course_row[3]
-                course_name = course_row[2]
-                self.courses_with_exams[course_num] = course_name
+                course_num = course_row[1]
+                course_name = course_row[0]
+                self.courses_with_exams_names[course_num] = course_name
 
     def _parse_majors_data(self, dir: str):
 
@@ -50,10 +42,11 @@ class CSVdataloader(Dataloader):
             for k, major_csv_row in enumerate(csv_reader):
                 if k < 3:
                     continue
-                major = Major(major_csv_row[0], k)
+                major = Major(major_csv_row[0])
                 self._majors_dict[major_csv_row[0]] = major
                 for sem in MajorSemester:
-                    self._read_sem_k(sem, major_csv_row, major)
+                    if MajorSemester.get_year_semester(sem) == self.sem:
+                        self._read_sem_k(sem, major_csv_row, major)
 
     def _read_sem_k(self, sem: MajorSemester, major_csv_row: list, major: Major):
         """
@@ -110,24 +103,22 @@ class CSVdataloader(Dataloader):
         :param sem: the sem No' of the courses
         :return: List of the courses object created
         """
-        sem_in_year = YearSemester.SEM_A if sem.value % 2 == 0 else YearSemester.SEM_B
-        courses_dict = self._courses_A if sem_in_year == YearSemester.SEM_A else self._courses_B
 
         courses_objects = []
 
         for course_num in courses_num:
 
             # if course does not require an exam - do not add it.
-            if course_num not in self.courses_with_exams:
+            if course_num not in self.courses_with_exams_names:
                 continue
 
-            course_num_with_sem = course_num + "-" + str(sem_in_year.value)
-            course = Course(course_num_with_sem, self.courses_with_exams[course_num])
+            course_num_with_sem = course_num + "-" + str(self.sem.value)
+            course = Course(course_num_with_sem, self.courses_with_exams_names[course_num])
 
-            if course_num in courses_dict:
-                course = courses_dict[course_num]
+            if course_num in self._courses:
+                course = self._courses[course_num]
             else:
-                courses_dict[course_num] = course
+                self._courses[course_num] = course
 
             major.add_course(course, type, sem)
             course.add_major(major, sem, type)
@@ -135,7 +126,7 @@ class CSVdataloader(Dataloader):
 
         return courses_objects
 
-    def _update_course_weight_dict(self, course_lst1, course_lst2, type1 : CourseType, type2 : CourseType):
+    def _update_course_weight_dict(self, course_lst1, course_lst2, type1: CourseType, type2: CourseType):
         """
         This function receives two list of courses which are taught in the same semester in some major, as well
         as their type in the semester (hova / bhirat hove / bhira). The function goes through all of the possible
@@ -170,15 +161,11 @@ class CSVdataloader(Dataloader):
         else:
             self.__course_pairs[c1_order][c2_order] += penalty
 
-    def get_course_list(self, sem: YearSemester) -> Union[List[Course], None]:
+    def get_course_list(self) -> Union[List[Course], None]:
         """
         Returns list of the courses of the given semester (semester A or B)
         """
-        if sem != YearSemester.SEM_A and sem != YearSemester.SEM_B:
-            return None
-
-        courses_dict_of_sem = self._courses_A if sem == YearSemester.SEM_A else self._courses_B
-        return list(courses_dict_of_sem.values())
+        return list(self._courses.values())
 
     def get_majors_dict(self):
         """

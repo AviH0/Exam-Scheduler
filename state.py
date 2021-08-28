@@ -1,7 +1,7 @@
 import random
 from abc import abstractmethod
-from datetime import date
-from typing import Dict, List, Tuple, Iterable, Sequence
+from datetime import date, timedelta
+from typing import Dict, List, Tuple, Iterable, Sequence, Mapping, Set
 
 from objects import *
 
@@ -9,7 +9,7 @@ from objects import *
 class State:
 
     def __init__(self, courses_and_dates: Dict[Course, Tuple[date, date]] = None,
-                 course_list: List[Course] = None, date_list: Tuple[Sequence[date], Sequence[date]] = None,
+                 course_list: List[Course] = None, date_list: Tuple[List[date], List[date]] = None,
                  keep_empty: bool = False):
         """
         Initialise a new state. Each state holds a dictionary where the keys are courses and the values are
@@ -28,10 +28,34 @@ class State:
         if not courses_and_dates and not keep_empty:
             self.random_initialise()
 
-    def random_initialise(self):  # TODO Random is almost always bad - at least enforce 21 days between aleph and bet
+    def random_initialise(self):
         self.courses_dict = dict()
         for c in self.course_list:
-            self.courses_dict[c] = random.choice(self.date_list[0]), random.choice(self.date_list[1])
+            a_date = random.choice(self.date_list[0])
+            possible_b_dates = []
+            for b_date in self.date_list[1]:
+                if (b_date - a_date).days >= MIN_DAYS_FROM_A_TO_B:
+                    possible_b_dates.append(b_date)
+            if not possible_b_dates:  # TODO if no possible dates - an error may happen
+                print(a_date)
+            b_date = random.choice(possible_b_dates)
+            self.courses_dict[c] = a_date, b_date
+
+    def export_solution(self) -> Mapping[date, Iterable[Course]]:
+        """
+        Exports the solution represented by the state - returns a mapping from a date to courses,
+         instead of course to date
+        """
+
+        solution_mapping: Mapping[date, Set[Course]] = {d: set() for d in
+                                                        self.date_list[0] + self.date_list[1]}
+        for course in self.courses_dict:
+            solution_mapping[self.courses_dict[course][0]].add(course)
+            solution_mapping[self.courses_dict[course][1]].add(course)
+        return solution_mapping
+
+    def save_to_csv(self, file_path):
+        pass  # TODO
 
     def __repr__(self):
         str_rep = ""
@@ -48,7 +72,7 @@ class State:
         """
         repr_str = ""
         for sem in MajorSemester:
-            if sem.value % 2 != year_sem.value - 1:
+            if MajorSemester.get_year_semester(sem) != year_sem:
                 continue
             repr_str += "____Semester No. " + str(sem.value + 1) + "____\n"
             sem_courses = major.get_sem_courses(sem)
@@ -87,7 +111,6 @@ class State:
         return repr_str
 
 
-
 class Evaluator:
 
     def __init__(self, course_pair_evaluate):
@@ -110,12 +133,6 @@ class SumEvaluator(Evaluator):
 
         sum = 0
 
-        # first check moed A and B distance
-        for course in state.courses_dict:
-            A_date, B_date = state.courses_dict[course]
-            if abs((B_date - A_date).days) < 21:
-                sum += 1000
-
         course_list = list(state.courses_dict.keys())
 
         for i in range(len(course_list)):
@@ -124,11 +141,12 @@ class SumEvaluator(Evaluator):
                 course1_dateA, course1_dateB = state.courses_dict[course1]
                 course2_dateA, course2_dateB = state.courses_dict[course2]
 
-                time_A, time_B = abs((course1_dateA - course2_dateA).days) + 0.1, abs((course1_dateB - course2_dateB).days) + 0.1
+                time_A, time_B = abs((course1_dateA - course2_dateA).days) + 0.1, abs(
+                    (course1_dateB - course2_dateB).days) + 0.1
 
                 course_distance = self.course_pair_evalutor(course1, course2)
                 if course_distance == 0:
-                    sum += 0
+                    continue
                 else:
                     sum += course_distance * (1 / time_A) + course_distance * (1 / time_B)
         return sum

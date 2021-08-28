@@ -26,10 +26,9 @@ class StateLoader:
             for k, course_csv_row in enumerate(csv_reader):
                 if k == 0:
                     self._parse_dates_range(course_csv_row)
-                if k < 2:
                     continue
 
-                course_num = course_csv_row[3]
+                course_num = course_csv_row[1]
                 if course_num not in self.courses_to_add_dict:
                     continue
 
@@ -60,8 +59,8 @@ class StateLoader:
         Parses the dates of the moed A and B of some course - a course is represent by a row in the csv file
         """
 
-        date_A_lst = re.split("[,/.]", csv_course_row[6])
-        date_B_lst = re.split("[,/.]", csv_course_row[7])
+        date_A_lst = re.split("[,/.]", csv_course_row[2])
+        date_B_lst = re.split("[,/.]", csv_course_row[3])
 
         if len(date_A_lst) != 3 or len(date_B_lst) != 3:
             return None, None

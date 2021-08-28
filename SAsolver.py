@@ -95,7 +95,6 @@ class SAstate(State):
                 if i < 100:
                     self.courses_dict[course] = new_dates
 
-
         return orig_state
 
 
@@ -136,7 +135,7 @@ class SAsolver(Solver):
         # algorithm
         T = T0 if T0 else DEFAULT_T0
         generator, subgroup_size = None, None
-        changes = [0,0,0,0,0]  # todo: delete after happy with search values
+        changes = [0, 0, 0, 0, 0]  # todo: delete after happy with search values
         best = self.state
         best_pen = float("inf")
         for k in range(ITERATION_N):

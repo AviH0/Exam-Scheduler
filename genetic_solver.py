@@ -1,17 +1,13 @@
-import heapq
-from datetime import timedelta
-from typing import Tuple, List, Set
-
+from typing import Tuple, List, Dict
 import numpy as np
-
 from state import State
 from solver import *
 
 
 class GeneticSolver(Solver):
 
-    def __init__(self, loader: Dataloader, evaluator: Evaluator, sem: YearSemester, initial_population=10, p_mutate=0.1,
-                 p_fittness_geom=0.5):
+    def __init__(self, loader: Dataloader, evaluator: Evaluator,
+                 initial_population=10, p_mutate=0.1, p_fittness_geom=0.5):
         """
         Create a new genetic solver.
         :param loader: Dataloader for this problem.
@@ -20,28 +16,19 @@ class GeneticSolver(Solver):
         :param p_mutate: Probability of a mutation during reproduction.
         :param p_fittness_geom: Probability of selection of a fit subject (Geometric)
         """
-        super(GeneticSolver, self).__init__(loader, evaluator, sem)
-        self.population = [State(course_list=loader.get_course_list(sem),
+        super(GeneticSolver, self).__init__(loader, evaluator)
+        self.population = [State(course_list=loader.get_course_list(),
                                  date_list=loader.get_available_dates())
                            for _ in range(initial_population)]
         self.__p_mutate = p_mutate
         self.__p_fitness_geom = p_fittness_geom
 
-    def export_solution(self) -> Mapping[date, Iterable[Course]]:
-        fitness = sorted([(state, self.evaluator(state)) for state in self.population],
-                         key=lambda x: x[1], reverse=True)
-        solution_state: State = fitness[0][0]
-        solution_mapping: Mapping[date, Set[Course]] = {d: set() for d in
-                                                        self.moed_a_dates + self.moed_b_dates}
-        for course in solution_state.courses_dict:
-            solution_mapping[solution_state.courses_dict[course][0]].add(course)
-            solution_mapping[solution_state.courses_dict[course][1]].add(course)
-        return solution_mapping
-
-    def solve(self, iterations=50, verbose=False):
-        for _ in range(iterations):
+    def solve(self, prgress_func: Callable, iterations=50, verbose=False):
+        for i in range(iterations):
             if verbose:
-                print(_)
+                print(i)
+
+            prgress_func(i / iterations)
 
             fitness = sorted([(state, self.evaluator(state)) for state in self.population],
                              key=lambda x: x[1], reverse=False)
@@ -95,12 +82,16 @@ class GeneticSolver(Solver):
         """
         if np.random.choice([True, False], p=[self.__p_mutate, 1 - self.__p_mutate]):
             course = np.random.choice(list(s.courses_dict.keys()))
-            # days_to_move = [timedelta(days=-1), timedelta(days=-1), timedelta(days=0), timedelta(days=0),
-            #         timedelta(days=0), timedelta(days=1), timedelta(days=1)]
-            moed = np.random.choice([0, 1])
             exam_dates = list(s.courses_dict[course])
-            exam_dates[moed] = np.random.choice([self.moed_a_dates, self.moed_b_dates][moed])
+
+            moed_to_change = np.random.choice([0, 1])
+            moed_to_keep_date = exam_dates[1 - moed_to_change]
+            new_possible_dates = []
+
+            for d in [self.moed_a_dates, self.moed_b_dates][moed_to_change]:
+                if abs((d - moed_to_keep_date)).days >= MIN_DAYS_FROM_A_TO_B:
+                    new_possible_dates.append(d)
+
+            exam_dates[moed_to_change] = np.random.choice(new_possible_dates)
             s.courses_dict[course] = tuple(exam_dates)
         return s
-
-    # def get_legal_movements(self, course: Course, moed):
