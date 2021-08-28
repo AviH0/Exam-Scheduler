@@ -18,6 +18,8 @@ class Dataloader:
         self.moedB_dates = []
 
     def _create_available_dates(self):
+        if (self.endB - self.endA).days < MIN_DAYS_FROM_A_TO_B:
+            raise No21DaysOfMoedBException
         one_day = timedelta(days=1)
         cur_date = self.startA
         while cur_date != self.endA:
@@ -51,3 +53,7 @@ class Dataloader:
         available dates for moed b exams.
         """
         return self.moedA_dates, self.moedB_dates
+
+
+class No21DaysOfMoedBException(Exception):
+    pass

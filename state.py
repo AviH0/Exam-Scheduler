@@ -2,6 +2,7 @@ import random
 from abc import abstractmethod
 from datetime import date, timedelta
 from typing import Dict, List, Tuple, Iterable, Sequence, Mapping, Set
+import csv
 
 from objects import *
 
@@ -55,7 +56,13 @@ class State:
         return solution_mapping
 
     def save_to_csv(self, file_path):
-        pass  # TODO
+        file = open(file_path, 'w+', encoding='utf-8')
+        csv_writer = csv.writer(file, delimiter=',')
+        csv_writer.writerow(["Course Name", "Course Number", "Moed A", "Moed B"])
+        for course in self.courses_dict:
+            csv_writer.writerow([course.name, course.number,
+                                 str(self.courses_dict[course][0]), str(self.courses_dict[course][1])])
+        file.close()
 
     def __repr__(self):
         str_rep = ""
