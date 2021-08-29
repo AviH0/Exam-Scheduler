@@ -23,7 +23,7 @@ def run_solver(major_data_path: str, courses_A_data_path: str, courses_B_data_pa
                              YearSemester.SEM_A)
 
     evaluator_A = SumEvaluator(loader_A.get_course_pair_weights())
-    evaluator_B = SumEvaluator(loader_A.get_course_pair_weights())
+    evaluator_B = SumEvaluator(loader_B.get_course_pair_weights())
 
     if solver_type == GENETIC_SOL:
         gen_solver_A = GeneticSolver(loader_A, evaluator_A)
