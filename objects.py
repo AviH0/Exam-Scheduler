@@ -126,6 +126,9 @@ class Course:
         else:
             self._majors_dict[major] = [(sem, course_type)]
 
+    def get_majors(self):
+        return self._majors_dict
+
     def __eq__(self, other):
         return self.number == other.number
 
