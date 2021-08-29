@@ -14,6 +14,7 @@ from tkinter.messagebox import showerror
 from tkinter.simpledialog import askstring
 import tkinter.filedialog
 from tkcalendar import DateEntry
+from ttkwidgets import CheckboxTreeview
 
 from CSVdataloader import CSVdataloader
 from agenda_cal import Agenda
@@ -31,7 +32,7 @@ HARD_CODED_EXAMS_TAG = 'hard_coded_exams'
 
 NO_EXAMS_TAG = 'forbidden'
 
-DATES_INFO_TAG = 'date_config'
+DATES_INFO_TAG = 'DATES_INFO_TAG'
 
 MOADEI_B_TAG = '2nd_round'
 
@@ -104,44 +105,45 @@ class ExamSchedulerGui:
 
     def build_display_cp_frame(self, root: Frame, sol_a, sol_b):
 
-        checklist = tix.CheckList(root)
+        checklist_frame = tk.Frame(root, borderwidth=2, relief=tk.GROOVE)
+        checklist = CheckboxTreeview(checklist_frame)
+        sb = ttk.Scrollbar(checklist_frame)
+        sb.configure(command=checklist.yview)
+        checklist.configure(yscrollcommand=sb.set)
 
-        def toggle(item_path):
-            path = item_path.split('.')
-            if len(path) > 1:
-                maj, sem = path
-                self.__majors_to_display[maj][sem].set(checklist.getstatus(item_path) == 'on')
-            else:
-                maj = path[0]
-                for sem in self.__majors_to_display[maj]:
-                    self.__majors_to_display[maj][sem].set(checklist.getstatus(f"{item_path}.{sem}") == 'on')
-                for childpath in checklist.hlist.info_children(item_path):
-                    checklist.setstatus(childpath, checklist.getstatus(item_path))
+        checklist.pack(side=tk.LEFT, expand=True, fill='y')
+        sb.pack(expand=True, fill='y')
+
+        def toggle(major, sem):
+            self.root.update()
+            self.__majors_to_display[major][sem].set(checklist.tag_has("checked", item=f"{major.major_name}.{sem.name}"))
             self.__show_solution(sol_a, EXAMS_A_TAG)
             self.__show_solution(sol_b, EXAMS_B_TAG)
 
-        checklist.configure(browsecmd=toggle)
-        checklist.hlist.config(drawbranch=True, height=45, header=True)
+        def toggle_major(major):
+            self.root.update()
+            for sem in self.__majors_to_display[major]:
+                self.__majors_to_display[major][sem].set(checklist.tag_has("checked", item=f"{major.major_name}.{sem.name}"))
+            self.__show_solution(sol_a, EXAMS_A_TAG)
+            self.__show_solution(sol_b, EXAMS_B_TAG)
 
-        checklist.hlist.header_create(0, itemtype=tix.TEXT, text='Majors to display', relief='flat')
+
         for i, maj in enumerate(self.__majors_to_display):
-            checklist.hlist.add(f"{maj}", text=f"{maj}")
-            checklist.setstatus(f"{maj}", 'on')
-            for sem in self.__majors_to_display[maj]:
-                checklist.hlist.add(f"{maj}.{sem}", text=f"Semester {sem}")
-                checklist.setstatus(f"{maj}.{sem}", 'on')
-            # check = tk.Checkbutton(root, variable=self.__majors_to_display[maj], text=maj.major_name,
-            #                        command=toggle_tag)
-            # check.grid(row=i, column=0, sticky=tk.W)
-        checklist.autosetmode()
-        checklist.grid(row=0, column=0, rowspan=4, sticky=tk.EW)
+            checklist.insert("", "end", f"{maj.major_name}", text=f"{maj.major_name}", tags=["checked", maj.major_name])
+            checklist.tag_bind(maj.major_name, "<1>", lambda x, maj=maj: self.root.after_idle(toggle_major, maj))
+            for j, sem in enumerate(self.__majors_to_display[maj]):
+                checklist.insert(f"{maj.major_name}", "end", f"{maj.major_name}.{sem.name}", text=f"{sem.name}", tags=["checked", f"{maj.major_name}.{sem.name}"])
+                checklist.tag_bind(f"{maj.major_name}.{sem.name}", "<1>", lambda x, maj=maj, sem=sem: self.root.after_idle(toggle, maj, sem))
+
+        checklist_frame.grid(row=0, column=0, rowspan=5, sticky=tk.NS)
+
 
         jump_frame = tk.LabelFrame(root, text="Calendar view jump")
         tk.Button(jump_frame, text="Jump to Semester A",
                   command=lambda: self.agenda.see(self.sem_a_start_entry.widget.get_date())).pack(pady=5)
         tk.Button(jump_frame, text="Jump to Semester B",
                   command=lambda: self.agenda.see(self.sem_b_start_entry.widget.get_date())).pack(pady=5)
-        jump_frame.grid(row=0, column=1, stick='new')
+        jump_frame.grid(row=0, column=2, stick='new')
 
         def save_sol(sol: State):
             filename = tkinter.filedialog.asksaveasfilename()
@@ -149,7 +151,7 @@ class ExamSchedulerGui:
                 sol.save_to_csv(filename)
 
         show_names = tk.Checkbutton(root, text="Show Course Names", variable=self.__show_names)
-        show_names.grid(row=1, column=1, sticky=tk.E)
+        show_names.grid(row=1, column=2, sticky=tk.E)
 
         self.__show_names.trace_add('write', lambda x, y, z: (self.__show_solution(sol_a, EXAMS_A_TAG),
                                                      self.__show_solution(sol_b, EXAMS_B_TAG)))
@@ -159,7 +161,7 @@ class ExamSchedulerGui:
                   command=lambda: save_sol(sol_a)).pack(pady=5)
         tk.Button(save_frame, text="Save Semester B Schedule",
                   command=lambda: save_sol(sol_b)).pack(pady=5)
-        save_frame.grid(row=2, column=1, stick='swe')
+        save_frame.grid(row=2, column=2, stick='swe')
 
         def reset():
             self.agenda.calevent_remove(tag=EXAMS_A_TAG)
@@ -169,7 +171,7 @@ class ExamSchedulerGui:
             self.cp_frame.grid(row=1, column=0)
 
         tk.Button(root, text="Reset",
-                  command=reset).grid(row=3, column=1, sticky=tk.SE, pady=5)
+                  command=reset).grid(row=3, column=2, sticky=tk.SE, pady=5)
 
     def build_cp_frame(self, root: Frame):
 
@@ -310,12 +312,12 @@ class ExamSchedulerGui:
             for c in courses:
                 course_flag = False
                 for maj, info in c.get_majors().items():
-                    if maj.major_name not in self.__majors_to_display:
-                        self.__majors_to_display[maj.major_name] = dict()
+                    if maj not in self.__majors_to_display:
+                        self.__majors_to_display[maj] = dict()
                     for i in info:
-                        if i[0].name not in self.__majors_to_display[maj.major_name]:
-                            self.__majors_to_display[maj.major_name][i[0].name] = tk.BooleanVar(value=True)
-                        if self.__majors_to_display[maj.major_name][i[0].name].get():
+                        if i[0] not in self.__majors_to_display[maj]:
+                            self.__majors_to_display[maj][i[0]] = tk.BooleanVar(value=True)
+                        if self.__majors_to_display[maj][i[0]].get():
                             course_flag = True
                 if course_flag:
                     if self.__show_names.get():
@@ -324,6 +326,8 @@ class ExamSchedulerGui:
                         text = c.number
                     self.agenda.calevent_create(date, text, [tag])
         self.update_selected_dates(None)
+        # self.update_tags()
+        self.agenda.see(datetime.date(*self.agenda.get_displayed_month()[::-1], 1))
 
     def show_solutions(self, sol_a, sol_b):
         self.__show_solution(sol_a, EXAMS_A_TAG)
@@ -380,57 +384,59 @@ class ExamSchedulerGui:
 
     def update_selected_dates(self, date_entry: WidgetWithLabel, update_from_selection=False):
 
-        self.agenda.calevent_remove(tag="date_config")
+        self.agenda.calevent_remove(tag=DATES_INFO_TAG)
         if update_from_selection:
             date_entry.widget.set_date(self.currently_selected_date.get())
 
         date_a: datetime.date = self.sem_a_start_entry.widget.get_date()
-        self.agenda.calevent_create(date_a, self.sem_a_start_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_a_start_entry.label['text'], 'DATES_INFO_TAG')
         while date_a < self.sem_a_a_end_entry.widget.get_date():
             self.agenda.calevent_create(date_a, '',
-                                        ['date_config', "1st_round"])
+                                        ['DATES_INFO_TAG', "1st_round"])
             date_a += datetime.timedelta(days=1)
-        self.agenda.calevent_create(date_a, self.sem_a_a_end_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_a_a_end_entry.label['text'], 'DATES_INFO_TAG')
 
         date_a: datetime.date = self.sem_a_b_start_entry.widget.get_date()
-        self.agenda.calevent_create(date_a, self.sem_a_b_start_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_a_b_start_entry.label['text'], 'DATES_INFO_TAG')
         while date_a < self.sem_a_b_end_entry.widget.get_date():
             self.agenda.calevent_create(date_a, '',
-                                        ['date_config', "2nd_round"])
+                                        ['DATES_INFO_TAG', "2nd_round"])
             date_a += datetime.timedelta(days=1)
-        self.agenda.calevent_create(date_a, self.sem_a_b_end_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_a_b_end_entry.label['text'], 'DATES_INFO_TAG')
 
         date_a: datetime.date = self.sem_b_start_entry.widget.get_date()
-        self.agenda.calevent_create(date_a, self.sem_b_start_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_b_start_entry.label['text'], 'DATES_INFO_TAG')
         while date_a < self.sem_b_a_end_entry.widget.get_date():
             self.agenda.calevent_create(date_a, '',
-                                        ['date_config', "1st_round"])
+                                        ['DATES_INFO_TAG', "1st_round"])
             date_a += datetime.timedelta(days=1)
-        self.agenda.calevent_create(date_a, self.sem_b_a_end_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_b_a_end_entry.label['text'], 'DATES_INFO_TAG')
 
         date_a: datetime.date = self.sem_b_b_start_entry.widget.get_date()
-        self.agenda.calevent_create(date_a, self.sem_b_b_start_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_b_b_start_entry.label['text'], 'DATES_INFO_TAG')
         while date_a < self.sem_b_b_end_entry.widget.get_date():
             self.agenda.calevent_create(date_a, '',
-                                        ['date_config', "2nd_round"])
+                                        ['DATES_INFO_TAG', "2nd_round"])
             date_a += datetime.timedelta(days=1)
-        self.agenda.calevent_create(date_a, self.sem_b_b_end_entry.label['text'], 'date_config')
+        self.agenda.calevent_create(date_a, self.sem_b_b_end_entry.label['text'], 'DATES_INFO_TAG')
 
-        self.update_tags()
+        # self.update_tags()
 
     def update_tags(self):
         self.agenda.tag_config(MOADEI_A_TAG, background='DodgerBlue2', foreground='red')
+        self.agenda.tag_config(EXAMS_A_TAG, background='DodgerBlue2', foreground='red')
         self.agenda.tag_config(MOADEI_B_TAG, background='cyan2', foreground='green')
+        self.agenda.tag_config(EXAMS_B_TAG, background='cyan2', foreground='green')
         self.agenda.tag_config(DATES_INFO_TAG, foreground='yellow')
         self.agenda.tag_config(NO_EXAMS_TAG, background='red', foreground='yellow')
 
     def forbid_date(self, is_forbidden: bool):
         date_to_forbid = self.agenda.selection_get()
         if is_forbidden:
-            self.agenda.calevent_create(date_to_forbid, "No Exams", "forbidden")
+            self.agenda.calevent_create(date_to_forbid, "No Exams", NO_EXAMS_TAG)
             self.__forbidden_dates.append(date_to_forbid)
         else:
-            self.agenda.calevent_remove(date=date_to_forbid, tag='forbidden')
+            self.agenda.calevent_remove(date=date_to_forbid, tag=NO_EXAMS_TAG)
             self.__forbidden_dates.remove(date_to_forbid)
         self.update_tags()
 
