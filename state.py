@@ -48,11 +48,19 @@ class State:
          instead of course to date
         """
 
-        solution_mapping: Mapping[date, Set[Course]] = {d: set() for d in
-                                                        self.date_list[0] + self.date_list[1]}
+        solution_mapping: Dict[date, Set[Course]] = {}
         for course in self.courses_dict:
-            solution_mapping[self.courses_dict[course][0]].add(course)
-            solution_mapping[self.courses_dict[course][1]].add(course)
+            date_A = self.courses_dict[course][0]
+            date_B = self.courses_dict[course][1]
+
+            if date_A not in solution_mapping:
+                solution_mapping[date_A] = set()
+            solution_mapping[date_A].add(course)
+
+            if date_B not in solution_mapping:
+                solution_mapping[date_B] = set()
+            solution_mapping[date_B].add(course)
+
         return solution_mapping
 
     def save_to_csv(self, file_path):
