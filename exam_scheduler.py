@@ -20,7 +20,7 @@ def run_solver(major_data_path: str, courses_A_data_path: str, courses_B_data_pa
                              YearSemester.SEM_A)
     loader_B = CSVdataloader(major_data_path, courses_B_data_path,
                              sem_b_a_start, sem_b_a_end, sem_b_b_start, sem_b_b_end, forbidden_dates,
-                             YearSemester.SEM_A)
+                             YearSemester.SEM_B)
 
     evaluator_A = SumEvaluator(loader_A.get_course_pair_weights())
     evaluator_B = SumEvaluator(loader_B.get_course_pair_weights())
@@ -28,8 +28,8 @@ def run_solver(major_data_path: str, courses_A_data_path: str, courses_B_data_pa
     if solver_type == GENETIC_SOL:
         gen_solver_A = GeneticSolver(loader_A, evaluator_A)
         gen_solver_B = GeneticSolver(loader_B, evaluator_B)
-        sol_state_A = gen_solver_A.solve(prog_call_back, 1000)
-        sol_state_B = gen_solver_B.solve(prog_call_back, 1000)
+        sol_state_A = gen_solver_A.solve(prog_call_back, 10)
+        sol_state_B = gen_solver_B.solve(prog_call_back, 10)
         return sol_state_A, sol_state_B
 
     if solver_type == SA_SOL:
