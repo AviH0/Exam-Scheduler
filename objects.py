@@ -122,7 +122,7 @@ class Course:
 
     def add_major(self, major: Major, sem: MajorSemester, course_type: CourseType):
         if major in self._majors_dict:
-            self._majors_dict[major].append([(sem, course_type)])
+            self._majors_dict[major].append((sem, course_type))
         else:
             self._majors_dict[major] = [(sem, course_type)]
 
