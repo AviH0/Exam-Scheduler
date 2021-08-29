@@ -7,7 +7,6 @@ import datetime
 import time
 import tkinter as tk
 import tkinter.ttk as ttk
-import tkinter.tix as tix
 from tkinter import Tk, Frame
 from typing import Dict, Sequence, List
 from tkinter.messagebox import showerror
@@ -64,7 +63,7 @@ class WidgetWithLabel(Frame):
 class ExamSchedulerGui:
 
     def __init__(self, window_size=WINDOW_SIZE, window_title=WINDOW_TITLE):
-        self.root = tix.Tk()
+        self.root = tk.Tk()
         self.root.geometry(WINDOW_SIZE)
         self.root.title(WINDOW_TITLE)
 
