@@ -1,13 +1,15 @@
 import asyncio
 import contextvars
 import functools
+import threading
 from asyncio import events
 import datetime
 import time
 import tkinter as tk
 import tkinter.ttk as ttk
+import tkinter.tix as tix
 from tkinter import Tk, Frame
-from typing import Dict, Sequence
+from typing import Dict, Sequence, List
 from tkinter.messagebox import showerror
 from tkinter.simpledialog import askstring
 import tkinter.filedialog
@@ -15,10 +17,15 @@ from tkcalendar import DateEntry
 
 from CSVdataloader import CSVdataloader
 from agenda_cal import Agenda
-from exam_scheduler import run_solver, GENETIC_SOL, ExamScheduler
+from dataloader import No21DaysOfMoedBException
+from exam_scheduler import run_solver, GENETIC_SOL, SA_SOL
 from genetic_solver import GeneticSolver
-from objects import YearSemester
-from state import SumEvaluator
+from objects import YearSemester, Major, MajorSemester
+from state import SumEvaluator, State
+
+EXAMS_A_TAG = "Exams_A"
+
+EXAMS_B_TAG = "Exams_B"
 
 HARD_CODED_EXAMS_TAG = 'hard_coded_exams'
 
@@ -37,6 +44,8 @@ HEADER1_FONT = ("Courier New", 18, 'bold')
 BODY_FONT = ("Courier New", 12)
 BG = 'white'
 
+SOLVER_NAMES = {"Genetic Algorithm": GENETIC_SOL, "Simulated Annealing": SA_SOL}
+
 
 class WidgetWithLabel(Frame):
 
@@ -54,12 +63,16 @@ class WidgetWithLabel(Frame):
 class ExamSchedulerGui:
 
     def __init__(self, window_size=WINDOW_SIZE, window_title=WINDOW_TITLE):
-        self.root = Tk()
+        self.root = tix.Tk()
         self.root.geometry(WINDOW_SIZE)
         self.root.title(WINDOW_TITLE)
 
-        self.__exam_scheduler = None
-        self.__scheduled_courses = dict()
+        self.__forbidden_dates: List[datetime.date] = []
+        self.__majors_to_display: Dict[Major, Dict[MajorSemester, tk.BooleanVar]] = dict()
+
+        self.__show_names = tk.BooleanVar()
+
+        self.__solver_thread = None
 
         cp_frame_label = tk.Label(self.root, text="Setup", font=HEADER1_FONT)
         cp_frame_label.grid(row=0, column=0)
@@ -84,32 +97,79 @@ class ExamSchedulerGui:
         self.cal_frame.grid(row=1, column=1)
 
         display_cp_frame_label = tk.Label(self.root, text="Display Settings", font=HEADER1_FONT)
-        display_cp_frame_label.grid(row=0, column=3)
+        # display_cp_frame_label.grid(row=0, column=3)
         self.display_cp_frame = Frame(self.root, borderwidth=2, relief=tk.GROOVE)
-        self.display_cp_frame.grid(row=1, column=3)
-        self.__majors_to_display = dict()
+        # self.display_cp_frame.grid(row=1, column=3)
         self.root.mainloop()
 
-    def build_display_cp_frame(self, root: Frame):
-        tags = self.agenda.tag_names()
-        for tag in tags:
-            self.__majors_to_display[tag] = tk.IntVar()
+    def build_display_cp_frame(self, root: Frame, sol_a, sol_b):
 
-            def toggle_tag():
-                self.agenda.calevent_remove(tag="Exam")
-                self.agenda.update()
-                majors_to_display = set(
-                    filter(lambda x: self.__majors_to_display[x].get(), self.__majors_to_display.keys()))
-                for d in self.solution:
-                    for c in self.solution[d]:
-                        if majors_to_display.intersection({m.major_name for m in c.get_common_majors(c)}):
-                            self.agenda.calevent_create(d, str(c),
-                                                        ["Exam"] + [m.major_name for m in
-                                                                    c.get_common_majors(c)])
+        checklist = tix.CheckList(root)
 
-            check = tk.Checkbutton(root, variable=self.__majors_to_display[tag], text=tag,
-                                   command=toggle_tag)
-            check.pack(side=tk.TOP)
+        def toggle(item_path):
+            path = item_path.split('.')
+            if len(path) > 1:
+                maj, sem = path
+                self.__majors_to_display[maj][sem].set(checklist.getstatus(item_path) == 'on')
+            else:
+                maj = path[0]
+                for sem in self.__majors_to_display[maj]:
+                    self.__majors_to_display[maj][sem].set(checklist.getstatus(f"{item_path}.{sem}") == 'on')
+                for childpath in checklist.hlist.info_children(item_path):
+                    checklist.setstatus(childpath, checklist.getstatus(item_path))
+            self.__show_solution(sol_a, EXAMS_A_TAG)
+            self.__show_solution(sol_b, EXAMS_B_TAG)
+
+        checklist.configure(browsecmd=toggle)
+        checklist.hlist.config(drawbranch=True, height=45, header=True)
+
+        checklist.hlist.header_create(0, itemtype=tix.TEXT, text='Majors to display', relief='flat')
+        for i, maj in enumerate(self.__majors_to_display):
+            checklist.hlist.add(f"{maj}", text=f"{maj}")
+            checklist.setstatus(f"{maj}", 'on')
+            for sem in self.__majors_to_display[maj]:
+                checklist.hlist.add(f"{maj}.{sem}", text=f"Semester {sem}")
+                checklist.setstatus(f"{maj}.{sem}", 'on')
+            # check = tk.Checkbutton(root, variable=self.__majors_to_display[maj], text=maj.major_name,
+            #                        command=toggle_tag)
+            # check.grid(row=i, column=0, sticky=tk.W)
+        checklist.autosetmode()
+        checklist.grid(row=0, column=0, rowspan=4, sticky=tk.EW)
+
+        jump_frame = tk.LabelFrame(root, text="Calendar view jump")
+        tk.Button(jump_frame, text="Jump to Semester A",
+                  command=lambda: self.agenda.see(self.sem_a_start_entry.widget.get_date())).pack(pady=5)
+        tk.Button(jump_frame, text="Jump to Semester B",
+                  command=lambda: self.agenda.see(self.sem_b_start_entry.widget.get_date())).pack(pady=5)
+        jump_frame.grid(row=0, column=1, stick='new')
+
+        def save_sol(sol: State):
+            filename = tkinter.filedialog.asksaveasfilename()
+            if filename:
+                sol.save_to_csv(filename)
+
+        show_names = tk.Checkbutton(root, text="Show Course Names", variable=self.__show_names)
+        show_names.grid(row=1, column=1, sticky=tk.E)
+
+        self.__show_names.trace_add('write', lambda x, y, z: (self.__show_solution(sol_a, EXAMS_A_TAG),
+                                                     self.__show_solution(sol_b, EXAMS_B_TAG)))
+
+        save_frame = tk.LabelFrame(root, text="Save Schedule")
+        tk.Button(save_frame, text="Save Semester A Schedule",
+                  command=lambda: save_sol(sol_a)).pack(pady=5)
+        tk.Button(save_frame, text="Save Semester B Schedule",
+                  command=lambda: save_sol(sol_b)).pack(pady=5)
+        save_frame.grid(row=2, column=1, stick='swe')
+
+        def reset():
+            self.agenda.calevent_remove(tag=EXAMS_A_TAG)
+            self.agenda.calevent_remove(tag=EXAMS_B_TAG)
+            self.agenda.update()
+            self.display_cp_frame.grid_remove()
+            self.cp_frame.grid(row=1, column=0)
+
+        tk.Button(root, text="Reset",
+                  command=reset).grid(row=3, column=1, sticky=tk.SE, pady=5)
 
     def build_cp_frame(self, root: Frame):
 
@@ -128,8 +188,8 @@ class ExamSchedulerGui:
         self.sem_b_courses_file_input.set_widget(SelectFileFrame, width=10)
         self.sem_b_courses_file_input.pack(expand=True, fill=tk.BOTH, padx=5, pady=5)
 
-        self.__load_button = tk.Button(load_frame, text="Load", command=lambda: self.load_files)
-        self.__load_button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
+        # self.__load_button = tk.Button(load_frame, text="Load", command=lambda: self.load_files)
+        # self.__load_button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
 
         dates_frame = tk.LabelFrame(root, text="Setup Schedule")
         dates_frame.pack(side=tk.BOTTOM)
@@ -200,54 +260,77 @@ class ExamSchedulerGui:
 
         self.__choose_solver = WidgetWithLabel(dates_frame, "Solver Algorithm")
         self.__choose_solver.set_widget(ttk.Combobox, values=["Genetic Algorithm", "Simulated Annealing"])
+        self.__choose_solver.widget.current(0)
         self.__choose_solver.pack(expand=True, fill=tk.X, pady=5, padx=5)
 
-        button = tk.Button(dates_frame, text="Solve", command=lambda: asyncio.run(self.run_solution()))
-        button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
+        self.__solve_button = tk.Button(dates_frame, text="Solve", command=self.run_solution)
+        self.__solve_button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
 
         self.__prog_bar_frame = tk.Frame(dates_frame)
         self.__prog_bar_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=10, pady=15)
 
+    def run_solution(self):
+        self.__solve_button.configure(state=tk.DISABLED)
+        pb = ttk.Progressbar(self.__prog_bar_frame, length=100, mode='determinate', orient='horizontal')
 
-
-    async def run_solution(self):
-        dl_a = CSVdataloader(self.maj_file_input.widget.get_selected_filename(),
-                             self.sem_a_start_entry.widget.get_date(),
-                             self.sem_a_a_end_entry.widget.get_date(),
-                             self.sem_a_b_start_entry.widget.get_date(),
-                             self.sem_a_b_end_entry.widget.get_date(),
-                             [],
-                             self.sem_a_courses_file_input.widget.get_selected_filename(),
-                             self.sem_b_courses_file_input.widget.get_selected_filename())
-        evaluator_a = SumEvaluator(dl_a.get_course_pair_weights())
+        def update(current_progress):
+            pb['value'] = current_progress * 100
+            self.root.update()
 
         def run():
-            solver, sol = run_solver(GENETIC_SOL, dl_a, evaluator_a)
-            return solver, sol
-        async def update():
-            while True:
-                self.root.update()
-                await asyncio.sleep(0.01)
+            try:
+                sol_a, sol_b = run_solver(self.maj_file_input.widget.get_selected_filename(),
+                                          self.sem_a_courses_file_input.widget.get_selected_filename(),
+                                          self.sem_b_courses_file_input.widget.get_selected_filename(),
+                                          self.sem_a_start_entry.widget.get_date(),
+                                          self.sem_a_a_end_entry.widget.get_date(),
+                                          self.sem_a_b_start_entry.widget.get_date(),
+                                          self.sem_a_b_end_entry.widget.get_date(),
+                                          self.sem_b_start_entry.widget.get_date(),
+                                          self.sem_b_a_end_entry.widget.get_date(),
+                                          self.sem_b_b_start_entry.widget.get_date(),
+                                          self.sem_b_b_end_entry.widget.get_date(),
+                                          self.__forbidden_dates,
+                                          SOLVER_NAMES[self.__choose_solver.widget.get()], update)
+                pb.destroy()
+                self.__solve_button.configure(state=tk.NORMAL)
+                self.show_solutions(sol_a, sol_b)
+            except No21DaysOfMoedBException:
+                showerror("Error!", "Selected dates do not include 21 days between the end of 1st round "
+                                    "and the end of 2nd round. Please retry with different dates.")
+                pb.destroy()
+                self.__solve_button.configure(state=tk.NORMAL)
 
-        pb = ttk.Progressbar(self.__prog_bar_frame, length=1, mode='indeterminate', orient='horizontal')
         pb.pack(fill=tk.BOTH, expand=True)
-        pb.start()
-        run_task = asyncio.create_task(to_thread(run))
-        update = asyncio.create_task(update())
-        await asyncio.wait((run_task, update), return_when=asyncio.FIRST_COMPLETED)
-        solver, sol = run_task.result()
-        update.cancel()
-        pb.stop()
-        pb.destroy()
-        solution = solver.export_solution()
-        self.agenda.see(self.sem_a_start_entry.widget.get_date())
-        for d in solution:
-            for c in solution[d]:
-                self.agenda.calevent_create(d, str(c),
-                                            ["Exam"])
-        self.solution = solution
-        self.build_display_cp_frame(self.display_cp_frame)
-        self.update_selected_dates(None, update_from_selection=False)
+        self.__solver_thread = threading.Thread(target=run).start()
+
+    def __show_solution(self, sol, tag):
+        self.agenda.calevent_remove(tag=tag)
+        for date, courses in sol.export_solution().items():
+            for c in courses:
+                course_flag = False
+                for maj, info in c.get_majors().items():
+                    if maj.major_name not in self.__majors_to_display:
+                        self.__majors_to_display[maj.major_name] = dict()
+                    for i in info:
+                        if i[0].name not in self.__majors_to_display[maj.major_name]:
+                            self.__majors_to_display[maj.major_name][i[0].name] = tk.BooleanVar(value=True)
+                        if self.__majors_to_display[maj.major_name][i[0].name].get():
+                            course_flag = True
+                if course_flag:
+                    if self.__show_names.get():
+                        text = c.name
+                    else:
+                        text = c.number
+                    self.agenda.calevent_create(date, text, [tag])
+        self.update_selected_dates(None)
+
+    def show_solutions(self, sol_a, sol_b):
+        self.__show_solution(sol_a, EXAMS_A_TAG)
+        self.__show_solution(sol_b, EXAMS_B_TAG)
+        self.build_display_cp_frame(self.display_cp_frame, sol_a, sol_b)
+        self.cp_frame.grid_remove()
+        self.display_cp_frame.grid(row=1, column=0, sticky='nsew')
 
     def on_calendar_rightclick(self, event):
         # Create the menu options and bindings:
@@ -345,8 +428,10 @@ class ExamSchedulerGui:
         date_to_forbid = self.agenda.selection_get()
         if is_forbidden:
             self.agenda.calevent_create(date_to_forbid, "No Exams", "forbidden")
+            self.__forbidden_dates.append(date_to_forbid)
         else:
             self.agenda.calevent_remove(date=date_to_forbid, tag='forbidden')
+            self.__forbidden_dates.remove(date_to_forbid)
         self.update_tags()
 
     def load_files(self):
@@ -408,6 +493,7 @@ class SelectFileFrame(Frame):
         self.field.configure(enabled=enabled)
         self.browse_button.configure(enabled=enabled)
 
+
 async def to_thread(func, *args, **kwargs):
     """Asynchronously run function *func* in a separate thread.
     Any *args and **kwargs supplied for this function are directly passed
@@ -420,6 +506,7 @@ async def to_thread(func, *args, **kwargs):
     ctx = contextvars.copy_context()
     func_call = functools.partial(ctx.run, func, *args, **kwargs)
     return await loop.run_in_executor(None, func_call)
+
 
 if __name__ == '__main__':
     gui = ExamSchedulerGui()
