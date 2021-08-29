@@ -6,6 +6,7 @@ from solver import *
 
 class GeneticSolver(Solver):
 
+    NUM_CALLS = 0
     def __init__(self, loader: Dataloader, evaluator: Evaluator,
                  initial_population=10, p_mutate=0.1, p_fittness_geom=0.5):
         """
@@ -23,12 +24,15 @@ class GeneticSolver(Solver):
         self.__p_mutate = p_mutate
         self.__p_fitness_geom = p_fittness_geom
 
-    def solve(self, prgress_func: Callable, iterations=50, verbose=False):
+    def solve(self, progress_func: Callable, iterations=50, verbose=False):
+
+        GeneticSolver.NUM_CALLS += 1
+
         for i in range(iterations):
             if verbose:
                 print(i)
 
-            prgress_func(i / iterations)
+            self._update_prog_func(progress_func, i, iterations)
 
             fitness = sorted([(state, self.evaluator(state)) for state in self.population],
                              key=lambda x: x[1], reverse=False)
@@ -95,3 +99,9 @@ class GeneticSolver(Solver):
             exam_dates[moed_to_change] = np.random.choice(new_possible_dates)
             s.courses_dict[course] = tuple(exam_dates)
         return s
+
+    def _update_prog_func(self, progress_func, iter_i, num_iterations):
+        progress = (iter_i / num_iterations) * 0.5
+        if GeneticSolver.NUM_CALLS % 2 == 0:
+            progress += 0.5
+        progress_func(progress)
