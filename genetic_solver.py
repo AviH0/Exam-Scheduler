@@ -8,7 +8,7 @@ class GeneticSolver(Solver):
 
     NUM_CALLS = 0
     def __init__(self, loader: Dataloader, evaluator: Evaluator,
-                 initial_population=10, p_mutate=0.1, p_fittness_geom=0.5):
+                 initial_population=50, p_mutate=0.7, p_fittness_geom=0.5):
         """
         Create a new genetic solver.
         :param loader: Dataloader for this problem.
