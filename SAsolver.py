@@ -1,7 +1,6 @@
 import copy
 from datetime import date, timedelta
 from typing import List, Set, Dict, Tuple, Iterable, Sequence
-from tqdm import tqdm
 from solver import *
 from dataloader import Dataloader
 from objects import Course
@@ -101,7 +100,7 @@ class SAstate(State):
 
 class SAsolver(Solver):
 
-    def __init__(self, loader: Dataloader, evaluator: Evaluator, sem: YearSemester,
+    def __init__(self, loader: Dataloader, evaluator: Evaluator,
                  bounds: Tuple[Tuple[date, date], Tuple[date, date]]):
         super(SAsolver, self).__init__(loader, evaluator)
         self.state = SAstate(bounds=bounds,
@@ -113,7 +112,7 @@ class SAsolver(Solver):
         self.dates = loader.get_available_dates()
         self.bounds = bounds
 
-    def solve(self, vals=None, T0=None, iterations=ITERATION_N) -> State:  # todo: add  -> State and take off vars[]
+    def solve(self, progress_func: Callable, vals=None, T0=None, iterations=ITERATION_N) -> State:  # todo: add  -> State and take off vars[]
         def reduce_T_lin(T: float) -> float:
             if T > 200:
                 T -= 1
@@ -140,6 +139,7 @@ class SAsolver(Solver):
         best = self.state
         best_pen = float("inf")
         for k in range(iterations):
+            progress_func(k/iterations)
             T = reduce_T_lin(T)
             if k % re_gen_val == 0:
                 generator = MOVE_ONE_GENERATOR if k > 50000 else choice(GENERATORS)
