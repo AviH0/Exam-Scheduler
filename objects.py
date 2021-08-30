@@ -46,7 +46,7 @@ class CollisionTypes(Enum):
     HOVA_HOVA = 10000
     HOVA_BHOVA = 100
     HOVA_BHIRA = 50
-    BHOVA_BHOVA = 100
+    BHOVA_BHOVA = 101
     BHOVA_BHIRA = 10
     BHIRA_BHIRA = 5
     NONE = 0
@@ -128,6 +128,9 @@ class Course:
 
     def get_majors(self):
         return self._majors_dict
+
+    def get_common_majors(self, other):
+        return set(self._majors_dict.keys()).intersection(set(other.get_majors().keys()))
 
     def __eq__(self, other):
         return self.number == other.number

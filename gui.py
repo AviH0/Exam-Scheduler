@@ -440,9 +440,9 @@ class ExamSchedulerGui:
         self.update_tags()
 
     def load_files(self):
-        self.__exam_scheduler = ExamScheduler(self.maj_file_input.widget.get_selected_filename(),
-                                              self.sem_a_courses_file_input.widget.get_selected_filename(),
-                                              self.sem_b_courses_file_input.widget.get_selected_filename())
+        # self.__exam_scheduler = ExamScheduler(self.maj_file_input.widget.get_selected_filename(),
+        #                                       self.sem_a_courses_file_input.widget.get_selected_filename(),
+        #                                       self.sem_b_courses_file_input.widget.get_selected_filename())
         self.maj_file_input.widget.set_enabled(False)
         self.sem_a_courses_file_input.widget.set_enabled(False)
         self.sem_b_courses_file_input.widget.set_enabled(False)
