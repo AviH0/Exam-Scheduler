@@ -1,7 +1,7 @@
 import copy
 from datetime import date, timedelta
 from typing import List, Set, Dict, Tuple, Iterable, Sequence
-
+from tqdm import tqdm
 from solver import *
 from dataloader import Dataloader
 from objects import Course
@@ -18,20 +18,19 @@ from math import exp
                 -> currently is linear with 3,000 jumping steps and 7,000 hill descending steps
  """
 
-
 SWAP_GENERATOR = "SWAP"
 MOVE_ONE_GENERATOR = "MOVE_ONE"
 MOVE_TWO_GENERATOR = "MOVE_TWO"
 GENERATORS = [SWAP_GENERATOR, MOVE_TWO_GENERATOR, MOVE_ONE_GENERATOR]
 DEFAULT_T0 = 1200
 ITERATION_N = 60000
-SUB_GROUP_N = [1,2,3]
-
+SUB_GROUP_N = [1, 2, 3]
 
 # TODO: ERASE!!!!
 STAGE2_PER_I = 0
 RE_GEN_I = 1
 RE_BEST_I = 2
+
 
 class SAstate(State):
 
@@ -70,7 +69,8 @@ class SAstate(State):
                     dates = self.courses_dict[course]
                     new_dates = dates[0] + timedelta(days=direction), dates[1] + timedelta(days=direction)
                     if self.bounds[0][0] <= new_dates[0] <= self.bounds[0][1] and \
-                            self.bounds[1][0] <= new_dates[1] <= self.bounds[1][1] and new_dates[1] - new_dates[0] >= timedelta(days=21):
+                            self.bounds[1][0] <= new_dates[1] <= self.bounds[1][1] and new_dates[1] - new_dates[
+                        0] >= timedelta(days=21):
                         break
                     i += 1
                 if i < 100:
@@ -89,7 +89,8 @@ class SAstate(State):
                         new_dates = (new_date, dates[1])
                     else:
                         new_dates = (dates[0], new_date)
-                    if self.bounds[moed][0] <= new_date <= self.bounds[moed][1] and new_dates[1] - new_dates[0] >= timedelta(days=21):
+                    if self.bounds[moed][0] <= new_date <= self.bounds[moed][1] and new_dates[1] - new_dates[
+                        0] >= timedelta(days=21):
                         break
                     i += 1
                 if i < 100:
@@ -102,17 +103,17 @@ class SAsolver(Solver):
 
     def __init__(self, loader: Dataloader, evaluator: Evaluator, sem: YearSemester,
                  bounds: Tuple[Tuple[date, date], Tuple[date, date]]):
-        super(SAsolver, self).__init__(loader, evaluator, sem)
+        super(SAsolver, self).__init__(loader, evaluator)
         self.state = SAstate(bounds=bounds,
-                             course_list=loader.get_course_list(sem),
+                             course_list=loader.get_course_list(),
                              date_list=loader.get_available_dates())
         self.cur_pen = self.evaluator(self.state)
-        self.course_list = loader.get_course_list(sem)
+        self.course_list = loader.get_course_list()
         self.weights = loader.get_course_pair_weights()
         self.dates = loader.get_available_dates()
         self.bounds = bounds
 
-    def solve(self, vals= None, T0 = None):  # todo: add  -> State and take off vars[]
+    def solve(self, vals=None, T0=None, iterations=ITERATION_N) -> State:  # todo: add  -> State and take off vars[]
         def reduce_T_lin(T: float) -> float:
             if T > 200:
                 T -= 1
@@ -124,9 +125,9 @@ class SAsolver(Solver):
 
         # declare temperature / relocating values
         if vals is not None:
-            linear_reduce_val = 180/(ITERATION_N*vars[STAGE2_PER_I])
-            re_gen_val = vars[RE_GEN_I]
-            re_best_val = vars[RE_BEST_I]
+            linear_reduce_val = 180 / (iterations * vals[STAGE2_PER_I])
+            re_gen_val = vals[RE_GEN_I]
+            re_best_val = vals[RE_BEST_I]
         else:
             linear_reduce_val = 0.0045
             re_gen_val = 300
@@ -138,11 +139,11 @@ class SAsolver(Solver):
         changes = [0, 0, 0, 0, 0]  # todo: delete after happy with search values
         best = self.state
         best_pen = float("inf")
-        for k in range(ITERATION_N):
+        for k in range(iterations):
             T = reduce_T_lin(T)
             if k % re_gen_val == 0:
                 generator = MOVE_ONE_GENERATOR if k > 50000 else choice(GENERATORS)
-                subgroup_size = choice([1,2]) if k > 50000 else choice(SUB_GROUP_N)
+                subgroup_size = choice([1, 2]) if k > 50000 else choice(SUB_GROUP_N)
 
             # relocate back to best state found so far
             if k % re_best_val == 0 and k < 50000:
@@ -167,15 +168,14 @@ class SAsolver(Solver):
                 self.state = orig_state
                 changes[1] += 1
                 continue
-            calc = exp(- abs(old_pen - new_pen)/T)
+            calc = exp(- abs(old_pen - new_pen) / T)
             if uniform(0, 1) < calc:
                 changes[2] += 1
                 continue
             changes[3] += 1
             self.state = orig_state
 
-        print(f"Changes made:\nuphill: {changes[0]}\nstayed the same towards the end: {changes[1]}\n"
-              f"risky mistakes: {changes[2]}\nno change: {changes[3]}\nuphills at end: {changes[4]}")
+        # print(f"Changes made:\nuphill: {changes[0]}\nstayed the same towards the end: {changes[1]}\n"
+        #       f"risky mistakes: {changes[2]}\nno change: {changes[3]}\nuphills at end: {changes[4]}")
         # return self.state, changes
         return self.state
-
