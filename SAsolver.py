@@ -36,11 +36,23 @@ class SAstate(State):
     def __init__(self, bounds: Tuple[Tuple[date, date], Tuple[date, date]],
                  courses_and_dates: Dict[Course, Tuple[date, date]] = None,
                  course_list: Iterable[Course] = None,
-                 date_list: Tuple[Sequence[date], Sequence[date]] = None):
+                 date_list: Tuple[Sequence[date], Sequence[date]] = None,
+                 dates_possible: Dict[date, boolean] = None):
         super(SAstate, self).__init__(courses_and_dates, course_list, date_list)
         self.course_list = [c for c in self.courses_dict.keys()]
         self.date_list = date_list
         self.bounds = bounds
+        if not dates_possible: 
+             self.build_poss_dates()
+
+    def build_poss_dates(self):
+        """
+            Build dictionary of dates allowed and not allowed not have tests on to be quickly passed and 
+        checked with with future generators. 
+        """
+        self.dates_possible = dict()
+        # todo  build dict of all dates and boolean value if allowed or not = if in date list
+
 
     def get_successor(self, sub_group_n: int, generator: str):
         """
@@ -48,7 +60,8 @@ class SAstate(State):
         type.
         """
         orig_state = SAstate(bounds=self.bounds,
-                             courses_and_dates={c: self.courses_dict[c] for c in self.courses_dict})
+                             courses_and_dates={c: self.courses_dict[c] for c in self.courses_dict},
+                             dates_possible=self.dates_possible)
         courses2move = sample(self.course_list, sub_group_n)
         for course in courses2move:
 
@@ -69,7 +82,7 @@ class SAstate(State):
                     new_dates = dates[0] + timedelta(days=direction), dates[1] + timedelta(days=direction)
                     if self.bounds[0][0] <= new_dates[0] <= self.bounds[0][1] and \
                             self.bounds[1][0] <= new_dates[1] <= self.bounds[1][1] and new_dates[1] - new_dates[
-                        0] >= timedelta(days=21):
+                        0] >= timedelta(days=21) and self.dates_possible[new_dates[0]] and self.dates_possible[new_dates[1]]:
                         break
                     i += 1
                 if i < 100:
@@ -89,7 +102,7 @@ class SAstate(State):
                     else:
                         new_dates = (dates[0], new_date)
                     if self.bounds[moed][0] <= new_date <= self.bounds[moed][1] and new_dates[1] - new_dates[
-                        0] >= timedelta(days=21):
+                        0] >= timedelta(days=21) and self.dates_possible[new_date]:
                         break
                     i += 1
                 if i < 100:
@@ -112,7 +125,7 @@ class SAsolver(Solver):
         self.dates = loader.get_available_dates()
         self.bounds = bounds
 
-    def solve(self, progress_func: Callable, vals=None, T0=None, iterations=ITERATION_N) -> State:  # todo: add  -> State and take off vars[]
+    def solve(self, progress_func: Callable, vals=None, T0=None, iterations=ITERATION_N) -> State:
         def reduce_T_lin(T: float) -> float:
             if T > 200:
                 T -= 1
@@ -138,15 +151,16 @@ class SAsolver(Solver):
         changes = [0, 0, 0, 0, 0]  # todo: delete after happy with search values
         best = self.state
         best_pen = float("inf")
+        last_stage = iterations * 0.7
         for k in range(iterations):
             progress_func(k/iterations)
             T = reduce_T_lin(T)
             if k % re_gen_val == 0:
-                generator = MOVE_ONE_GENERATOR if k > 50000 else choice(GENERATORS)
-                subgroup_size = choice([1, 2]) if k > 50000 else choice(SUB_GROUP_N)
+                generator = MOVE_ONE_GENERATOR if k > last_stage else choice(GENERATORS)
+                subgroup_size = choice([1, 2]) if k > last_stage else choice(SUB_GROUP_N)
 
             # relocate back to best state found so far
-            if k % re_best_val == 0 and k < 50000:
+            if k % re_best_val == 0 and k < last_stage:
                 self.state = best
 
             # try something new
@@ -158,7 +172,7 @@ class SAsolver(Solver):
                 best = self.state
                 best_pen = new_pen
             if new_pen < old_pen:
-                if k > 41800:
+                if k > last_stage:
                     changes[4] += 1
                 changes[0] += 1
                 self.cur_pen = new_pen
