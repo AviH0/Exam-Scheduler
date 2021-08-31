@@ -7,16 +7,22 @@ from datetime import date, timedelta
 
 
 class StateLoader:
-
     MoedA = 1
     MoedB = 2
 
     # TODO courses to add are courses we have "major info" on them. If we add courses to the state that we don't
     #  have info about - we can't evaluate the state...
-    def __init__(self, state_file_dir: str, courses_to_add: List[Course]):
-
+    def __init__(self, state_file_dir: str, courses_to_add: List[Course], bounds=None):
+        self.bounds = bounds
         self.courses_to_add_dict = {course.number[0:5]: course for course in courses_to_add}
         self.state_dict: Dict[Course, Tuple[date, date]] = {}
+
+        if bounds:
+            self.startA_date = bounds[0][0]
+            self.endA_date = bounds[0][1]
+            self.startB_date = bounds[1][0]
+            self.endB_date = bounds[1][1]
+
         self._parse(state_file_dir)
 
     def _parse(self, dir: str):
@@ -24,10 +30,11 @@ class StateLoader:
         with open(dir, encoding='utf-8') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             for k, course_csv_row in enumerate(csv_reader):
-                if k == 0:
+                if k == 0 and not self.bounds:
                     self._parse_dates_range(course_csv_row)
                     continue
-
+                if not course_csv_row:
+                    continue
                 course_num = course_csv_row[1]
                 if course_num not in self.courses_to_add_dict:
                     continue
@@ -59,8 +66,8 @@ class StateLoader:
         Parses the dates of the moed A and B of some course - a course is represent by a row in the csv file
         """
 
-        date_A_lst = re.split("[,/.]", csv_course_row[2])
-        date_B_lst = re.split("[,/.]", csv_course_row[3])
+        date_A_lst = re.split(r"[,/\-.\\]", csv_course_row[2])
+        date_B_lst = re.split(r"[,/\-.\\]", csv_course_row[3])
 
         if len(date_A_lst) != 3 or len(date_B_lst) != 3:
             return None, None
@@ -78,9 +85,19 @@ class StateLoader:
         Tries to switch between month and day if there is a problem - the data is far from perfect.
         """
         d = None
-        dates_flexibility = timedelta(days=3)
-        start_date = self.startA_date if moed == StateLoader.MoedA else self.startB_date - dates_flexibility
-        end_date = self.endA_date if moed == StateLoader.MoedA else self.endB_date + dates_flexibility
+        dates_flexibility = timedelta(days=9)
+        start_date = (self.startA_date if moed == StateLoader.MoedA else self.startB_date) - dates_flexibility
+        end_date = (self.endA_date if moed == StateLoader.MoedA else self.endB_date) + dates_flexibility
+        if len(date_as_lst[0]) == 4:
+            y = date_as_lst[0]
+            m = date_as_lst[1]
+            d = date_as_lst[2]
+            date_as_lst[0] = m
+            date_as_lst[1] = d
+            date_as_lst[2] = y
+
+        if len(date_as_lst[2]) == 2:
+            date_as_lst[2] = '20' + date_as_lst[2]
         try:
             d = date(int(date_as_lst[2]), int(date_as_lst[0]), int(date_as_lst[1]))
             if not (start_date <= d <= end_date):

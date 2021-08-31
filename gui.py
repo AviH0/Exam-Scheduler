@@ -262,6 +262,11 @@ class ExamSchedulerGui:
         self.__choose_solver.widget.current(0)
         self.__choose_solver.pack(expand=True, fill=tk.X, pady=5, padx=5)
 
+
+        self.__choose_iterations =  WidgetWithLabel(dates_frame, "Number of Iterations (0 for default)")
+        self.__choose_iterations.set_widget(ttk.Spinbox, from_=0, to=100_000)
+        self.__choose_iterations.pack(expand=True, fill=tk.X, pady=5, padx=5)
+
         self.__solve_button = tk.Button(dates_frame, text="Solve", command=self.run_solution)
         self.__solve_button.pack(side=tk.RIGHT, padx=10, pady=15, ipadx=5, ipady=2)
 
@@ -278,6 +283,10 @@ class ExamSchedulerGui:
 
         def run():
             try:
+                kwargs = dict()
+                iterations = int(self.__choose_iterations.widget.get())
+                if iterations:
+                    kwargs['iterations'] = iterations
                 sol_a, sol_b = run_solver(self.maj_file_input.widget.get_selected_filename(),
                                           self.sem_a_courses_file_input.widget.get_selected_filename(),
                                           self.sem_b_courses_file_input.widget.get_selected_filename(),
@@ -290,7 +299,7 @@ class ExamSchedulerGui:
                                           self.sem_b_b_start_entry.widget.get_date(),
                                           self.sem_b_b_end_entry.widget.get_date(),
                                           self.__forbidden_dates,
-                                          SOLVER_NAMES[self.__choose_solver.widget.get()], update)
+                                          SOLVER_NAMES[self.__choose_solver.widget.get()], update, **kwargs)
                 pb.destroy()
                 self.__solve_button.configure(state=tk.NORMAL)
                 self.show_solutions(sol_a, sol_b)

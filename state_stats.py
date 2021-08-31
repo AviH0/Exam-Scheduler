@@ -60,7 +60,10 @@ def get_average_break(state, major, course_types, moed):
 
         courses_of_type_dates = []
         for course in courses_of_type:
-            courses_of_type_dates.append(state.courses_dict[course][moed])
+            try:
+                courses_of_type_dates.append(state.courses_dict[course][moed])
+            except KeyError:
+                print(f"Could not find dates for course {course}")
         courses_of_type_dates.sort()
 
         if len(courses_of_type_dates) < 2:
@@ -105,8 +108,8 @@ def get_coll_stats(sol: State, major: Major, moed: int):
     return num_coll
 
 
-def coll_stat_graph(majors: List[Major], sol_sem_a: State, moed: int):
-    major_names = [m.major_name for m in majors]
+def coll_stat_graph(majors: List[Major], sol_sem_a: State, moed: int, title=''):
+    major_names = [m.major_name[::-1] for m in majors]
     hova_hova = []
     hova_bhova = []
     bhova_bhova = []
@@ -142,8 +145,8 @@ def coll_stat_graph(majors: List[Major], sol_sem_a: State, moed: int):
     plt.xlabel('Major', fontweight='bold', fontsize=15)
     plt.ylabel('Collisions', fontweight='bold', fontsize=15)
     plt.xticks([r + barWidth for r in range(len(hova_hova))],
-              major_names)
-
+              major_names,  rotation=45, fontsize=6)
+    plt.title(title)
     plt.legend()
     plt.show()
 
@@ -155,15 +158,15 @@ def _get_average_without_inf(lst):
         if n != 'inf':
             counter += 1
             sum += n
-    return sum / counter
+    return sum / counter if counter > 0 else 0
 
 
-def get_break_stats_graph(sol: State, majors: List[Major], moed: int):
+def get_break_stats_graph(sol: State, majors: List[Major], moed: int, title=''):
     hova_avg = []
     bhova_avg = []
     bhira_avg = []
 
-    major_names = [m.major_name for m in majors]
+    major_names = [m.major_name[::-1] for m in majors]
 
     for major in majors:
         hova = get_average_break(sol, major, CourseType.HOVA, moed)
@@ -199,7 +202,8 @@ def get_break_stats_graph(sol: State, majors: List[Major], moed: int):
     plt.xlabel('Major', fontweight='bold', fontsize=15)
     plt.ylabel('avg break', fontweight='bold', fontsize=15)
     plt.xticks([r + barWidth for r in range(len(hova_avg))],
-               major_names)
+               major_names, rotation=45, fontsize=6)
+    plt.title(title)
 
     plt.legend()
     plt.show()
@@ -213,33 +217,58 @@ def main():
     # RIGHT NOW IT IS ONLY DOING SEMESTER A
     # THAT IS BECAUSE IT DEPENDS ON DATA LOADER WHICH LOADS ONE SEMESTER AT A TIME
     ####################################
-    dl = CSVdataloader("data/data3.csv", "data/courses_names_A.csv",
+    dl = CSVdataloader("data/data4.csv", "data/courses_names_A.csv",
                        date(2022, 1, 16), date(2022, 2, 11), date(2022, 2, 15), date(2022, 3, 4),
                        [], YearSemester.SEM_A)
+
+    majors = dl.get_majors_dict().values()
+    # Get average "break" between exams graph.
+    # The graph tells the average days between hova, hovat bhira and bhira exams for each major
 
     # human solution extraction:
     sl = StateLoader("data/sem_A_sol_human.csv", dl.get_course_list())
     human_sol = sl.get_state()
+    get_break_stats_graph(human_sol, majors, 0, title=f"Semester A Human Solution")
+    coll_stat_graph(majors, human_sol, 0, title=f"Semester A Human Solution")
 
-    # the solver
-    eval = SumEvaluator(dl.get_course_pair_weights())
-    gs = GeneticSolver(dl, eval)
-    sol = gs.solve(prog_dunc, 100, True) #genetic solution
+    sa_sl = StateLoader("data/SA3000SEM_A.csv", dl.get_course_list(), bounds=((dl.startA, dl.endA), (dl.startB, dl.endB)))
+    sa_sol = sa_sl.get_state()
+    get_break_stats_graph(sa_sol, majors, 0, title=f"Semester A Solution with SA")
+    coll_stat_graph(majors, sa_sol, 0, title=f"Semester A Solution with SA")
 
-    # majors with the most data available
-    majors = []
-    majors.append(dl.get_majors_dict()["ביובית"])
-    majors.append(dl.get_majors_dict()["כימיה- ביולוגיה"])
-    majors.append(dl.get_majors_dict()["ביולוגיה חד חוגי מורחב"])
-    # To get all majors (ugly grpah) use: majors = dl.get_majors_dict().values()
+    gen_sl = StateLoader("data/GEN1000SEM_A.csv", dl.get_course_list(),
+                        bounds=((dl.startA, dl.endA), (dl.startB, dl.endB)))
+    gen_sol = gen_sl.get_state()
+    get_break_stats_graph(gen_sol, majors, 0, title=f"Semester A Solution with Genetic")
+    coll_stat_graph(majors, gen_sol, 0, title=f"Semester A Solution with Genetic")
 
-    # Get average "break" between exams graph.
-    # The graph tells the average days between hova, hovat bhira and bhira exams for each major
-    get_break_stats_graph(sol, majors, 0)
+    dl = CSVdataloader("data/data4.csv", "data/courses_names_B.csv",
+                       date(2022, 6, 26), date(2022, 7, 27), date(2022, 7, 28), date(2022, 8, 19),
+                       [], YearSemester.SEM_B)
+
+    majors = dl.get_majors_dict().values()
+
+    # human solution extraction:
+    sl = StateLoader("data/sem_B_sol_human.csv", dl.get_course_list())
+    human_sol = sl.get_state()
+    get_break_stats_graph(human_sol, majors, 0, title=f"Semester B Human Solution")
+    coll_stat_graph(majors, human_sol, 0, title=f"Semester B Human Solution")
+
+    sa_sl = StateLoader("data/SA3000SEM_B.csv", dl.get_course_list(),
+                        bounds=((dl.startA, dl.endA), (dl.startB, dl.endB)))
+    sa_sol = sa_sl.get_state()
+    get_break_stats_graph(sa_sol, majors, 0, title=f"Semester B Solution with SA")
+    coll_stat_graph(majors, sa_sol, 0, title=f"Semester B Solution with SA")
+
+    gen_sl = StateLoader("data/GEN1000SEM_B.csv", dl.get_course_list(),
+                         bounds=((dl.startA, dl.endA), (dl.startB, dl.endB)))
+    gen_sol = gen_sl.get_state()
+    get_break_stats_graph(gen_sol, majors, 0, title=f"Semester B Solution with Genetic")
+    coll_stat_graph(majors, gen_sol, 0, title=f"Semester B Solution with Genetic")
 
     # Get the graph represents the number of collisions in majors between different types of courses
     # Does it only for semester A courses (because that is the data that was provided by the data loader...)
-    coll_stat_graph(majors, sol, 0)
+
 
 
 if __name__ == "__main__":

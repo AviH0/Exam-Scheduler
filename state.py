@@ -66,9 +66,9 @@ class State:
     def save_to_csv(self, file_path):
         file = open(file_path, 'w+', encoding='utf-8')
         csv_writer = csv.writer(file, delimiter=',')
-        csv_writer.writerow(["Course Name", "Course Number", "Moed A", "Moed B"])
+
         for course in self.courses_dict:
-            csv_writer.writerow([course.name, course.number,
+            csv_writer.writerow([course.name, course.number[:-2],
                                  str(self.courses_dict[course][0]), str(self.courses_dict[course][1])])
         file.close()
 
