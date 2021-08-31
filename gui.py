@@ -64,8 +64,8 @@ class ExamSchedulerGui:
 
     def __init__(self, window_size=WINDOW_SIZE, window_title=WINDOW_TITLE):
         self.root = tk.Tk()
-        self.root.geometry(WINDOW_SIZE)
-        self.root.title(WINDOW_TITLE)
+        self.root.geometry(window_size)
+        self.root.title(window_title)
 
         self.__forbidden_dates: List[datetime.date] = []
         self.__majors_to_display: Dict[Major, Dict[MajorSemester, tk.BooleanVar]] = dict()
@@ -96,10 +96,8 @@ class ExamSchedulerGui:
 
         self.cal_frame.grid(row=1, column=1)
 
-        display_cp_frame_label = tk.Label(self.root, text="Display Settings", font=HEADER1_FONT)
-        # display_cp_frame_label.grid(row=0, column=3)
+
         self.display_cp_frame = Frame(self.root, borderwidth=2, relief=tk.GROOVE)
-        # self.display_cp_frame.grid(row=1, column=3)
         self.root.mainloop()
 
     def build_display_cp_frame(self, root: Frame, sol_a, sol_b):
@@ -370,9 +368,6 @@ class ExamSchedulerGui:
                                command=lambda: self.update_selected_dates(self.sem_b_b_end_entry,
                                                                           update_from_selection=True))
 
-        top_menu.add_command(label="Schedule Course on this date",
-                             command=lambda: self.__schedule_course_dialog(self.agenda.selection_get()))
-
         is_forbidden = tk.BooleanVar()
         is_forbidden.set(not not self.agenda.get_calevents(self.agenda.selection_get(), "forbidden"))
 
@@ -448,28 +443,7 @@ class ExamSchedulerGui:
         self.sem_b_courses_file_input.widget.set_enabled(False)
         self.__load_button.configure(enabled=False)
 
-    def __schedule_course_dialog(self, date):
-        selected_moed = None
-        if self.agenda.get_calevents(date, MOADEI_A_TAG):
-            selected_moed = 0
-        if self.agenda.get_calevents(date, MOADEI_A_TAG):
-            selected_moed = 1
-        if selected_moed is None:
-            showerror("Bad Date!", "Selected date is not in range of exam dates!")
-            return
-        message = f"Schedule course Moed {['A', 'B'][selected_moed]} for {date}"
-        course = askstring("Input course...", message)
-        while not True:  # todo check if course number is valid
-            showerror("Bad Course!", "Invalid course number, please try again")
-            course = askstring("Input course...", message)
-        self.__scheduled_courses[course] = [(date, None), (None, date)][selected_moed]
-        self.agenda.calevent_remove(tag=HARD_CODED_EXAMS_TAG)
-        for course in self.__scheduled_courses:
-            moed_a, moed_b = self.__scheduled_courses[course]
-            if moed_a:
-                self.agenda.calevent_create(moed_a, course, [HARD_CODED_EXAMS_TAG])
-            if moed_b:
-                self.agenda.calevent_create(moed_b, course, [HARD_CODED_EXAMS_TAG])
+
 
 
 class SelectFileFrame(Frame):
