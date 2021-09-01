@@ -56,11 +56,26 @@ def re_gener_changes(s, e):
 
 
 def second_stage_changes(s, e):
-    T_values = [0.33, 0.45, 0.5, 0.66, 0.8, 0.9]
+    T_values = [0.25, 0.33, 0.45, 0.5, 0.55, 0.6, 0.66, 0.8, 0.9]
     penalties = []
 
     for val in tqdm(T_values):
         sol = s.solve(func, stage_2_per=val, iterations=7000)
+        penalty = e.evaluate(sol)
+        penalties.append(penalty)
+    plt.plot(T_values, penalties, 'r')
+    plt.xlabel('Second Stage Percentage')
+    plt.ylabel('Penalties')
+    plt.yscale('log')
+    plt.show()
+    
+    
+ def re_spawn_changes(s, e):
+    T_values = [10, 100, 300, 500, 800, 1000, 1200, 2000, 5000]
+    penalties = []
+
+    for val in tqdm(T_values):
+        sol = s.solve(func, re_spawn=val, iterations=7000)
         penalty = e.evaluate(sol)
         penalties.append(penalty)
     plt.plot(T_values, penalties, 'r')
