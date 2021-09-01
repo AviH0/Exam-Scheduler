@@ -5,8 +5,10 @@ from CSVdataloader import CSVdataloader
 from SAsolver import SAsolver
 from state import *
 
+
 def func(p):
     pass
+
 
 def iter_changes(s, e):
     iters = [10, 100, 300, 500, 800, 1000, 2000, 5000, 10_000, 20_000, 40_000, 60_000]
@@ -43,7 +45,7 @@ def re_gener_changes(s, e):
     penalties = []
 
     for val in tqdm(T_values):
-        sol = s.solve(re_gen=val, iterations=5000). #todo make from 5000 to best of iter possibilities
+        sol = s.solve(re_gen=val, iterations=10_000)
         penalty = e.evaluate(sol)
         penalties.append(penalty)
     plt.plot(T_values, penalties, 'r')
@@ -51,13 +53,14 @@ def re_gener_changes(s, e):
     plt.ylabel('Penalties')
     plt.yscale('log')
     plt.show()
- 
+
+
 def second_stage_changes(s, e):
     T_values = [0.33, 0.45, 0.5, 0.66, 0.8, 0.9]
     penalties = []
 
     for val in tqdm(T_values):
-        sol = s.solve(stage_2_per=val, iterations=5000). #todo make from 5000 to best of iter possibilities
+        sol = s.solve(stage_2_per=val, iterations=10_000)
         penalty = e.evaluate(sol)
         penalties.append(penalty)
     plt.plot(T_values, penalties, 'r')
@@ -65,7 +68,7 @@ def second_stage_changes(s, e):
     plt.ylabel('Penalties')
     plt.yscale('log')
     plt.show()
- 
+
 
 def main():
     dl = CSVdataloader("data/data2.csv", "data/courses_names_A.csv", date(2021, 1, 16), date(2021, 2, 11),
@@ -74,7 +77,7 @@ def main():
     evaluator = SumEvaluator(dl.get_course_pair_weights())
 
     solver = SAsolver(dl, evaluator, ((date(2021, 1, 16), date(2021, 2, 11)), (date(2021, 2, 13),
-                                                                                                   date(2021, 3, 4))))
+                                                                               date(2021, 3, 4))))
 
     # iter_changes(solver, evaluator)
 
