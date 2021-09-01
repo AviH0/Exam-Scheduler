@@ -138,8 +138,8 @@ class SAsolver(Solver):
             return T
 
         # declare temperature / relocating values
-        linear_reduce_per = 0.7 if stage_2_per is None else stage_2_per
-        linear_reduce_val = 180 / (iterations * linear_reduce_per)
+        last_stage_per = 0.8 if stage_2_per is None else stage_2_per
+        linear_reduce_val = 180 / (iterations * last_stage_per)
         re_gen_val = 2000 if re_gen is None else re_gen
         re_best_val = 1500 if re_best if None else re_best
         
@@ -150,7 +150,7 @@ class SAsolver(Solver):
         changes = [0, 0, 0, 0, 0]  # todo: delete after happy with search values
         best = self.state
         best_pen = float("inf")
-        last_stage = iterations * 0.7
+        last_stage = iterations * last_stage_per
         for k in range(iterations):
             progress_func(k/iterations)
             T = reduce_T_lin(T)
