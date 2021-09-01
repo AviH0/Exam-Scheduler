@@ -17,10 +17,6 @@ DEFAULT_T0 = 1200
 ITERATION_N = 7000
 SUB_GROUP_N = [1, 2, 3]
 
-# TODO: ERASE!!!!
-STAGE2_PER_I = 0
-RE_GEN_I = 1
-RE_BEST_I = 2
 
 
 class SAstate(State):
@@ -56,6 +52,10 @@ class SAstate(State):
         """
             Creates successor by effecting (len(course_list) choose sub_group_n) courses through generator action
         type.
+            Generator types:
+                SWAP_GENERATOR - swaps courses test dates with a randomly chosen other course
+                MOVE_TWO_GENERATOR - moves both courses test dates a day forwards or a day backwards if allowed
+                MOVE_ONE_GENERATOR - moves one of a courses test dates a day forwards or a day backwards
         """
         orig_state = SAstate(bounds=self.bounds,
                              courses_and_dates={c: self.courses_dict[c] for c in self.courses_dict},
@@ -127,7 +127,14 @@ class SAsolver(Solver):
     def solve(self, progress_func: Callable, T0=None, iterations=ITERATION_N, re_gen = None,
               stage_2_per = None, re_best = None) -> State:        
         
-#     def solve(self, progress_func: Callable, vals=None, T0=None, iterations=ITERATION_N) -> State:
+        """
+            Finds an optimal solution by running iterations, where at each iteration a change is made
+        to a state. If the change improves the state we always continue with the change and if not
+        then at a decreasing probability we take it in order to escape local minimas. The type of change 
+        made each iteration changes thoughout the code in order to ensure more that we escape local minimas
+        in large drainage basins. We also return to the best state found every re_best iterations in order 
+        to ensure that we don't accedently leave a global minima once reached. 
+        """
         def reduce_T_lin(T: float) -> float:  # linear reduce by 1 for first stage (1000 iterations)
             if T > 200:
                 T -= 1
@@ -147,7 +154,6 @@ class SAsolver(Solver):
         # Simulated Annealing algorithm
         T = T0 if T0 else DEFAULT_T0
         generator, subgroup_size = None, None
-        changes = [0, 0, 0, 0, 0]  # todo: delete after happy with search values
         best = self.state
         best_pen = float("inf")
         last_stage = iterations * last_stage_per
@@ -171,24 +177,15 @@ class SAsolver(Solver):
                 best = self.state
                 best_pen = new_pen
             if new_pen < old_pen:
-                if k > last_stage:
-                    changes[4] += 1
-                changes[0] += 1
                 self.cur_pen = new_pen
                 continue
 
             if T == 0:  # don't save if we are towards the end
                 self.state = orig_state
-                changes[1] += 1
                 continue
             calc = exp(- abs(old_pen - new_pen) / T)
             if uniform(0, 1) < calc:
-                changes[2] += 1
                 continue
-            changes[3] += 1
             self.state = orig_state
 
-        # print(f"Changes made:\nuphill: {changes[0]}\nstayed the same towards the end: {changes[1]}\n"
-        #       f"risky mistakes: {changes[2]}\nno change: {changes[3]}\nuphills at end: {changes[4]}")
-        # return self.state, changes
         return self.state

@@ -10,7 +10,7 @@ class StateLoader:
     MoedA = 1
     MoedB = 2
 
-    # TODO courses to add are courses we have "major info" on them. If we add courses to the state that we don't
+    #  courses to add are courses we have "major info" on them. If we add courses to the state that we don't
     #  have info about - we can't evaluate the state...
     def __init__(self, state_file_dir: str, courses_to_add: List[Course], bounds=None):
         self.bounds = bounds

@@ -37,7 +37,7 @@ class State:
             for b_date in self.date_list[1]:
                 if (b_date - a_date).days >= MIN_DAYS_FROM_A_TO_B:
                     possible_b_dates.append(b_date)
-            if not possible_b_dates:  # TODO if no possible dates - an error may happen
+            if not possible_b_dates:  # if no possible dates - an error may happen
                 print(a_date)
             b_date = random.choice(possible_b_dates)
             self.courses_dict[c] = a_date, b_date

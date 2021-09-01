@@ -27,11 +27,3 @@ class Solver:
         :return:
         """
         pass
-
-    @abstractmethod
-    def export_solution(self) -> Mapping[date, Iterable[Course]]:
-        """
-        Return an schedule for exams as a  mapping from date to iterable of courses.
-        :return:
-        """
-        pass
