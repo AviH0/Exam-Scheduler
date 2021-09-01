@@ -22,7 +22,7 @@ MOVE_ONE_GENERATOR = "MOVE_ONE"
 MOVE_TWO_GENERATOR = "MOVE_TWO"
 GENERATORS = [SWAP_GENERATOR, MOVE_TWO_GENERATOR, MOVE_ONE_GENERATOR]
 DEFAULT_T0 = 1200
-ITERATION_N = 60000
+ITERATION_N = 10000
 SUB_GROUP_N = [1, 2, 3]
 
 # TODO: ERASE!!!!
@@ -132,7 +132,8 @@ class SAsolver(Solver):
         self.dates = loader.get_available_dates()
         self.bounds = bounds
 
-    def solve(self, progress_func: Callable, T0=None, iterations=ITERATION_N, re_gen = None, stage_2_per = None) -> State:        
+    def solve(self, progress_func: Callable, T0=None, iterations=ITERATION_N, re_gen = None,
+              stage_2_per = None, re_best = None) -> State:        
         
 #     def solve(self, progress_func: Callable, vals=None, T0=None, iterations=ITERATION_N) -> State:
         def reduce_T_lin(T: float) -> float:  # linear reduce by 1 for first stage (1000 iterations)
@@ -148,7 +149,7 @@ class SAsolver(Solver):
         linear_reduce_per = 0.66 if stage_2_per is None else stage_2_per
         linear_reduce_val = 180 / (iterations * 0.66)
         re_gen_val = 300 if re_gen is None else re_gen
-        re_best_val = 5000
+        re_best_val = 5000 if re_best if None else re_best
         
         
         # Simulated Annealing algorithm
