@@ -38,6 +38,35 @@ def initial_T_changes(s, e):
     plt.show()
 
 
+def re_gener_changes(s, e):
+    T_values = [10, 100, 300, 500, 800, 1000, 1200, 2000, 5000]
+    penalties = []
+
+    for val in tqdm(T_values):
+        sol = s.solve(re_gen=val, iterations=5000). #todo make from 5000 to best of iter possibilities
+        penalty = e.evaluate(sol)
+        penalties.append(penalty)
+    plt.plot(T_values, penalties, 'r')
+    plt.xlabel('Re-Generate values')
+    plt.ylabel('Penalties')
+    plt.yscale('log')
+    plt.show()
+ 
+def second_stage_changes(s, e):
+    T_values = [0.33, 0.45, 0.5, 0.66, 0.8, 0.9]
+    penalties = []
+
+    for val in tqdm(T_values):
+        sol = s.solve(stage_2_per=val, iterations=5000). #todo make from 5000 to best of iter possibilities
+        penalty = e.evaluate(sol)
+        penalties.append(penalty)
+    plt.plot(T_values, penalties, 'r')
+    plt.xlabel('Second Stage Percentage')
+    plt.ylabel('Penalties')
+    plt.yscale('log')
+    plt.show()
+ 
+
 def main():
     dl = CSVdataloader("data/data2.csv", "data/courses_names_A.csv", date(2021, 1, 16), date(2021, 2, 11),
                        date(2021, 2, 13),

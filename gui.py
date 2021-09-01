@@ -18,7 +18,7 @@ from ttkwidgets import CheckboxTreeview
 from CSVdataloader import CSVdataloader
 from agenda_cal import Agenda
 from dataloader import No21DaysOfMoedBException
-from exam_scheduler import run_solver, GENETIC_SOL, SA_SOL
+from scheduler import run_solver, GENETIC_SOL, SA_SOL
 from genetic_solver import GeneticSolver
 from objects import YearSemester, Major, MajorSemester
 from state import SumEvaluator, State
