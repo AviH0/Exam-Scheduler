@@ -74,18 +74,6 @@ def main():
     pop_changes(evaluator, dl)
 
     p_muted_changes(evaluator, dl)
-    # sol = solver.solve(func, 1000, True)
-    #
-    # sl = StateLoader("data/courses_A.csv", dl.get_course_list())
-    # human_sol = sl.get_state()
-    #
-    # print("Machine sol penalty: " + str(evaluator.evaluate(sol)))
-    # print("Human solution penalty: " + str(evaluator.evaluate(human_sol)))
-    #
-    # majors_dict = dl.get_majors_dict()
-    # major = majors_dict["מדמח חד חוגי"]
-    # print(sol.get_major_schedule_repr(major, YearSemester.SEM_A))
-    # print(human_sol.get_major_schedule_repr(major, YearSemester.SEM_A))
 
 
 if __name__ == "__main__":

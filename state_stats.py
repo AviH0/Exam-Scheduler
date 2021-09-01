@@ -20,6 +20,11 @@ def _get_collisions_sol_update(output_dict, major, sem, c1, c2):
 
 
 def get_collisions(state: State, moed: int, col_type: CollisionTypes):
+    """
+    Given a sate, moed (A=0, B=1), and a collision type to search for, will return a dictionary who's keys are
+    majors, and the values are dicts of {sem: [(c1,c2),...]} where the course pairs are courses that have
+    col_type collision in this major's semester.
+    """
     courses_dates = state.courses_dict
     courses_list = list(courses_dates.keys())
 
@@ -49,6 +54,11 @@ def get_collisions(state: State, moed: int, col_type: CollisionTypes):
 
 
 def get_average_break(state, major, course_types, moed):
+    """
+    Given a state, major, course type and moed, this function will retrun a list with 8 numbers, where
+    each number is the average days between exams of the given type in the corresponding semester.
+    Will return inf if there is only one exam, or no exams at all of the specified type.
+    """
 
     averages_per_sem = []
     for sem in MajorSemester:
@@ -84,6 +94,11 @@ def prog_dunc(som):
 
 
 def get_coll_stats(sol: State, major: Major, moed: int):
+    """
+    Returns the number of collisions in the current major in the current state. The collisions of types
+    HOVA_HOVA, HOVA_BHIRAT HOVA, BHIRAT HOVA_BHIRATHOVA, BHIRA_BHIRA.
+    returns an array with the four numbers - number of collisions
+    """
     num_coll = [0] * 4
     col_hova_hova = get_collisions(sol, moed, CollisionTypes.HOVA_HOVA)
     if major in col_hova_hova:
@@ -214,7 +229,6 @@ def get_break_stats_graph(sol: State, majors: List[Major], moed: int, title=''):
 def main():
     ################################
     #  ALWAYS COMPARES IN SEMESTER A OR B. CANT DO BOTH!!!
-    # RIGHT NOW IT IS ONLY DOING SEMESTER A
     # THAT IS BECAUSE IT DEPENDS ON DATA LOADER WHICH LOADS ONE SEMESTER AT A TIME
     ####################################
     dl = CSVdataloader("data/data4.csv", "data/courses_names_A.csv",
@@ -268,7 +282,6 @@ def main():
 
     # Get the graph represents the number of collisions in majors between different types of courses
     # Does it only for semester A courses (because that is the data that was provided by the data loader...)
-
 
 
 if __name__ == "__main__":
