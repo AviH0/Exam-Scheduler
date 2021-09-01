@@ -37,7 +37,7 @@ class SAstate(State):
                  courses_and_dates: Dict[Course, Tuple[date, date]] = None,
                  course_list: Iterable[Course] = None,
                  date_list: Tuple[Sequence[date], Sequence[date]] = None,
-                 dates_possible: Dict[date, boolean] = None):
+                 dates_possible: Set[date] = None):
         super(SAstate, self).__init__(courses_and_dates, course_list, date_list)
         self.course_list = [c for c in self.courses_dict.keys()]
         self.date_list = date_list
@@ -47,11 +47,13 @@ class SAstate(State):
 
     def build_poss_dates(self):
         """
-            Build dictionary of dates allowed and not allowed not have tests on to be quickly passed and 
-        checked with with future generators. 
+            Builds set of all dates in date list for later checking. This is done once at the begninning of the program and
+            is passed from each state to state. 
         """
-        self.dates_possible = dict()
-        # todo  build dict of all dates and boolean value if allowed or not = if in date list
+        self.dates_possible = set()
+        for moed in [0,1]:
+            for date2add in self.date_list[moed]:
+                self.dates_possible.add(date2add)
 
 
     def get_successor(self, sub_group_n: int, generator: str):
@@ -82,7 +84,8 @@ class SAstate(State):
                     new_dates = dates[0] + timedelta(days=direction), dates[1] + timedelta(days=direction)
                     if self.bounds[0][0] <= new_dates[0] <= self.bounds[0][1] and \
                             self.bounds[1][0] <= new_dates[1] <= self.bounds[1][1] and new_dates[1] - new_dates[
-                        0] >= timedelta(days=21) and self.dates_possible[new_dates[0]] and self.dates_possible[new_dates[1]]:
+                        0] >= timedelta(days=21) and \
+                        new_dates[0] in self.dates_possible and new_dates[1] in self.dates_possible:
                         break
                     i += 1
                 if i < 100:
@@ -102,7 +105,7 @@ class SAstate(State):
                     else:
                         new_dates = (dates[0], new_date)
                     if self.bounds[moed][0] <= new_date <= self.bounds[moed][1] and new_dates[1] - new_dates[
-                        0] >= timedelta(days=21) and self.dates_possible[new_date]:
+                        0] >= timedelta(days=21) and new_date in self.dates_possible:
                         break
                     i += 1
                 if i < 100:
@@ -125,14 +128,16 @@ class SAsolver(Solver):
         self.dates = loader.get_available_dates()
         self.bounds = bounds
 
+#     def solve(self, progress_func: Callable, T0=None, iterations=ITERATION_N, re_gen = None) -> State:        
+        
     def solve(self, progress_func: Callable, vals=None, T0=None, iterations=ITERATION_N) -> State:
-        def reduce_T_lin(T: float) -> float:
+        def reduce_T_lin(T: float) -> float:  # linear reduce by 1 for first stage (1000 iterations)
             if T > 200:
                 T -= 1
-            elif T > 20:
+            elif T > 20:  # linear reduce by our linear_reduce_val for second stage
                 T -= linear_reduce_val
             else:
-                T = T * 0.1
+                T = T * 0.1  # geometric reduce for third and final stage. (hill climbing stage)
             return T
 
         # declare temperature / relocating values
@@ -141,11 +146,12 @@ class SAsolver(Solver):
             re_gen_val = vals[RE_GEN_I]
             re_best_val = vals[RE_BEST_I]
         else:
-            linear_reduce_val = 0.0045
+#             linear_reduce_val = 0.0045.
+            linear_reduce_val = 180 / (iterations * 0.66)
             re_gen_val = 300
             re_best_val = 5000
 
-        # algorithm
+        # Simulated Annealing algorithm
         T = T0 if T0 else DEFAULT_T0
         generator, subgroup_size = None, None
         changes = [0, 0, 0, 0, 0]  # todo: delete after happy with search values
