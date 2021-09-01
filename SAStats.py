@@ -45,7 +45,7 @@ def re_gener_changes(s, e):
     penalties = []
 
     for val in tqdm(T_values):
-        sol = s.solve(re_gen=val, iterations=10_000)
+        sol = s.solve(func, re_gen=val, iterations=7000)
         penalty = e.evaluate(sol)
         penalties.append(penalty)
     plt.plot(T_values, penalties, 'r')
@@ -60,7 +60,7 @@ def second_stage_changes(s, e):
     penalties = []
 
     for val in tqdm(T_values):
-        sol = s.solve(stage_2_per=val, iterations=10_000)
+        sol = s.solve(func, stage_2_per=val, iterations=7000)
         penalty = e.evaluate(sol)
         penalties.append(penalty)
     plt.plot(T_values, penalties, 'r')
@@ -81,7 +81,11 @@ def main():
 
     # iter_changes(solver, evaluator)
 
-    initial_T_changes(solver, evaluator)
+    # initial_T_changes(solver, evaluator)
+
+    re_gener_changes(solver, evaluator)
+
+    second_stage_changes(solver, evaluator)
 
 
 if __name__ == '__main__':
