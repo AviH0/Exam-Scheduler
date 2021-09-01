@@ -8,21 +8,13 @@ from state import Evaluator, State
 from random import sample, choice, uniform
 from math import exp
 
-"""
-    Things left here:
-        -  find faster way to update score then evaluating every time
-        -  dates change
-        -  find best values for T0 and ITERATION_N
-        -  find best reduce function for T 
-                -> currently is linear with 3,000 jumping steps and 7,000 hill descending steps
- """
 
 SWAP_GENERATOR = "SWAP"
 MOVE_ONE_GENERATOR = "MOVE_ONE"
 MOVE_TWO_GENERATOR = "MOVE_TWO"
 GENERATORS = [SWAP_GENERATOR, MOVE_TWO_GENERATOR, MOVE_ONE_GENERATOR]
 DEFAULT_T0 = 1200
-ITERATION_N = 10000
+ITERATION_N = 7000
 SUB_GROUP_N = [1, 2, 3]
 
 # TODO: ERASE!!!!
@@ -146,10 +138,10 @@ class SAsolver(Solver):
             return T
 
         # declare temperature / relocating values
-        linear_reduce_per = 0.66 if stage_2_per is None else stage_2_per
-        linear_reduce_val = 180 / (iterations * 0.66)
-        re_gen_val = 300 if re_gen is None else re_gen
-        re_best_val = 5000 if re_best if None else re_best
+        linear_reduce_per = 0.7 if stage_2_per is None else stage_2_per
+        linear_reduce_val = 180 / (iterations * linear_reduce_per)
+        re_gen_val = 2000 if re_gen is None else re_gen
+        re_best_val = 1500 if re_best if None else re_best
         
         
         # Simulated Annealing algorithm
