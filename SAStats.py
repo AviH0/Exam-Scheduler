@@ -70,16 +70,16 @@ def second_stage_changes(s, e):
     plt.show()
     
     
- def re_spawn_changes(s, e):
+ def re_best_changes(s, e):
     T_values = [10, 100, 300, 500, 800, 1000, 1200, 2000, 5000]
     penalties = []
 
     for val in tqdm(T_values):
-        sol = s.solve(func, re_spawn=val, iterations=7000)
+        sol = s.solve(func, re_best=val, iterations=7000)
         penalty = e.evaluate(sol)
         penalties.append(penalty)
     plt.plot(T_values, penalties, 'r')
-    plt.xlabel('Second Stage Percentage')
+    plt.xlabel('Return to Best Values')
     plt.ylabel('Penalties')
     plt.yscale('log')
     plt.show()
@@ -98,9 +98,11 @@ def main():
 
     # initial_T_changes(solver, evaluator)
 
-    re_gener_changes(solver, evaluator)
+#     re_gener_changes(solver, evaluator)
 
     second_stage_changes(solver, evaluator)
+
+    re_best_changes(solver, evaluator)
 
 
 if __name__ == '__main__':
