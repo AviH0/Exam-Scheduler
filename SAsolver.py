@@ -141,7 +141,7 @@ class SAsolver(Solver):
         last_stage_per = 0.8 if stage_2_per is None else stage_2_per
         linear_reduce_val = 180 / (iterations * last_stage_per)
         re_gen_val = 2000 if re_gen is None else re_gen
-        re_best_val = 1500 if re_best if None else re_best
+        re_best_val = 1500 if re_best is None else re_best
         
         
         # Simulated Annealing algorithm

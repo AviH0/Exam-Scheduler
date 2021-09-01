@@ -70,7 +70,7 @@ def second_stage_changes(s, e):
     plt.show()
     
     
- def re_best_changes(s, e):
+def re_best_changes(s, e):
     T_values = [10, 100, 300, 500, 800, 1000, 1200, 2000, 5000]
     penalties = []
 
