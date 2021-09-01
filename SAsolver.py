@@ -42,15 +42,19 @@ class SAstate(State):
         self.course_list = [c for c in self.courses_dict.keys()]
         self.date_list = date_list
         self.bounds = bounds
-        if not dates_possible: 
-             self.build_poss_dates()
+        if not dates_possible:
+            self.dates_possible = set()
+            self.build_poss_dates()
+
+        else:
+            self.dates_possible = dates_possible
 
     def build_poss_dates(self):
         """
             Builds set of all dates in date list for later checking. This is done once at the begninning of the program and
             is passed from each state to state. 
         """
-        self.dates_possible = set()
+        # self.dates_possible = set()
         for moed in [0,1]:
             for date2add in self.date_list[moed]:
                 self.dates_possible.add(date2add)
