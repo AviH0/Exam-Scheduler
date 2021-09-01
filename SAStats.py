@@ -56,7 +56,7 @@ def re_gener_changes(s, e):
 
 
 def second_stage_changes(s, e):
-    T_values = [0.25, 0.33, 0.45, 0.5, 0.55, 0.6, 0.66, 0.8, 0.9]
+    T_values = [0.25, 0.33, 0.45, 0.5, 0.55, 0.6, 0.66, 0.8, 0.9, 0.95, 0.99, 1]
     penalties = []
 
     for val in tqdm(T_values):
@@ -102,7 +102,7 @@ def main():
 
     second_stage_changes(solver, evaluator)
 
-    re_best_changes(solver, evaluator)
+#     re_best_changes(solver, evaluator)
 
 
 if __name__ == '__main__':
